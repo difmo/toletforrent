@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import '../presentation/splash_screen/splash_screen.dart';
+import '../presentation/property_search_screen/property_search_screen.dart';
+import '../presentation/authentication_screen/authentication_screen.dart';
+import '../presentation/onboarding_flow/onboarding_flow.dart';
+import '../presentation/home_screen/home_screen.dart';
+import '../presentation/property_detail_screen/property_detail_screen.dart';
+import '../presentation/favorites_screen/favorites_screen.dart';
+import '../presentation/add_property_screen/add_property_screen.dart';
+import '../presentation/messages_screen/messages_screen.dart';
+import '../presentation/profile_screen/profile_screen.dart';
+
+class AppRoutes {
+  // TODO: Add your routes here
+  static const String initial = '/';
+  static const String splash = '/splash-screen';
+  static const String propertySearch = '/property-search-screen';
+  static const String authentication = '/authentication-screen';
+  static const String onboardingFlow = '/onboarding-flow';
+  static const String home = '/home-screen';
+  static const String propertyDetail = '/property-detail-screen';
+  static const String favorites = '/favorites-screen';
+  static const String addProperty = '/add-property-screen';
+  static const String messages = '/messages-screen';
+  static const String profile = '/profile-screen';
+
+  static Map<String, WidgetBuilder> routes = {
+    initial: (context) => const SplashScreen(),
+    splash: (context) => const SplashScreen(),
+    propertySearch: (context) => const PropertySearchScreen(),
+    authentication: (context) => const AuthenticationScreen(),
+    onboardingFlow: (context) => const OnboardingFlow(),
+    home: (context) => const HomeScreen(),
+    propertyDetail: (context) => const PropertyDetailScreen(),
+    favorites: (context) => const FavoritesScreen(),
+    addProperty: (context) => const AddPropertyScreen(),
+    messages: (context) => const MessagesScreen(),
+    profile: (context) => const ProfileScreen(),
+    // TODO: Add your other routes here
+  };
+}
