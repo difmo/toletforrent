@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../core/app_export.dart';
+import '../../data/services/auth_service.dart'; // ⬅️ add
 import './widgets/email_input_widget.dart';
 import './widgets/otp_input_widget.dart';
 import './widgets/phone_input_widget.dart';
 import './widgets/social_login_widget.dart';
+import 'dart:io' show Platform;
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthenticationScreen extends StatefulWidget {
   const AuthenticationScreen({super.key});
@@ -33,18 +40,20 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   String? _phoneError;
   String _fullPhoneNumber = '';
 
-  // Mock credentials for testing
-  final Map<String, String> _mockCredentials = {
-    'phone': '+919876543210',
-    'email': 'user@toletforrent.com',
-    'password': 'password123',
-    'otp': '123456',
-  };
-
+  // 🔐 OTP state
+  String? _verificationId;
+  String _otpCode = '';
+  StreamSubscription<User?>? _authSub;
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null && mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+            context, '/home-screen', (_) => false);
+      }
+    });
   }
 
   void _initializeAnimations() {
@@ -64,7 +73,8 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
 
     _fadeController.forward();
     _slideController.forward();
@@ -78,6 +88,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -323,22 +334,15 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
           ),
         ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppTheme.lightTheme.colorScheme.onPrimary,
-                  ),
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Text(
                 'Continue',
                 style: GoogleFonts.inter(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+                    fontSize: 16.sp, fontWeight: FontWeight.w600),
               ),
       ),
     );
@@ -353,27 +357,19 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.lightTheme.colorScheme.primary,
           foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppTheme.lightTheme.colorScheme.onPrimary,
-                  ),
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Text(
                 'Verify & Continue',
                 style: GoogleFonts.inter(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+                    fontSize: 16.sp, fontWeight: FontWeight.w600),
               ),
       ),
     );
@@ -394,11 +390,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         GestureDetector(
           onTap: () {
             setState(() => _currentStep = AuthenticationStep.emailAuth);
-            _pageController.animateToPage(
-              2,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
+            _pageController.animateToPage(2,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut);
           },
           child: Text(
             'Sign in with Email',
@@ -413,135 +407,225 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     );
   }
 
-  // Event Handlers
-  void _handlePhoneSubmit() {
-    if (_phoneController.text.isEmpty) {
+  // ----------------------------------------------------------
+  // Event Handlers  🔽 (real Firebase logic)
+  // ----------------------------------------------------------
+
+  Future<void> _handlePhoneSubmit() async {
+    // Basic validation
+    final raw = _phoneController.text.trim();
+    if (raw.isEmpty) {
       setState(() => _phoneError = 'Phone number is required');
       return;
     }
-    if (_phoneController.text.length < 10) {
-      setState(() => _phoneError = 'Please enter a valid phone number');
-      return;
+    // Normalize to E.164 (+91… fallback for 10 digits)
+    String phone = raw;
+    if (!phone.startsWith('+')) {
+      if (phone.length == 10) {
+        phone = '+91$phone';
+      } else {
+        setState(
+            () => _phoneError = 'Enter number like +9198XXXXXXXX or 10 digits');
+        return;
+      }
     }
 
-    setState(() => _isLoading = true);
-
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _currentStep = AuthenticationStep.otpVerification;
-        });
-        _pageController.animateToPage(
-          1,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isLoading = true;
+      _phoneError = null;
+      _fullPhoneNumber = phone;
     });
+
+    try {
+      // You can also call FirebaseAuth.verifyPhoneNumber if you need resend tokens.
+      _verificationId = await AuthService.I.sendOtp(e164Phone: phone);
+      setState(() {
+        _isLoading = false;
+        _currentStep = AuthenticationStep.otpVerification;
+      });
+      _pageController.animateToPage(1,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP sent to $phone')),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Failed to send OTP')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send OTP: $e')),
+      );
+    }
   }
 
   void _handleOtpChanged(String otp) {
+    _otpCode = otp;
     if (otp.length == 6) {
       _handleOtpVerification();
     }
   }
 
-  void _handleOtpVerification() {
-    setState(() => _isLoading = true);
-
-    // Simulate OTP verification
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateToHome();
-      }
-    });
-  }
-
-  void _handleResendOtp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('OTP sent to $_fullPhoneNumber'),
-        backgroundColor: AppTheme.lightTheme.colorScheme.secondary,
-      ),
-    );
-  }
-
-  void _handleGoogleSignIn() {
-    setState(() => _isLoading = true);
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateToHome();
-      }
-    });
-  }
-
-  void _handleAppleSignIn() {
-    setState(() => _isLoading = true);
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateToHome();
-      }
-    });
-  }
-
-  void _handleEmailSignIn(String email, String password) {
-    if (email != _mockCredentials['email'] ||
-        password != _mockCredentials['password']) {
+  Future<void> _handleOtpVerification() async {
+    if ((_verificationId ?? '').isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Invalid credentials. Use ${_mockCredentials['email']} / ${_mockCredentials['password']}'),
-          backgroundColor: AppTheme.lightTheme.colorScheme.error,
-        ),
-      );
+          const SnackBar(content: Text('No verification in progress')));
+      return;
+    }
+    if (_otpCode.length != 6) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter 6-digit OTP')));
       return;
     }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateToHome();
-      }
-    });
+    try {
+      await AuthService.I.verifyOtpAndSignIn(
+        verificationId: _verificationId!,
+        smsCode: _otpCode,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _navigateToHome();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'OTP verification failed')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP verification failed: $e')),
+      );
+    }
   }
 
-  void _handleEmailSignUp(String email, String password) {
-    setState(() => _isLoading = true);
+  Future<void> _handleResendOtp() async {
+    if (_fullPhoneNumber.isEmpty) return;
+    try {
+      setState(() => _isLoading = true);
+      _verificationId =
+          await AuthService.I.sendOtp(e164Phone: _fullPhoneNumber);
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP re-sent to $_fullPhoneNumber')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not resend OTP: $e')),
+      );
+    }
+  }
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateToHome();
-      }
-    });
+// Replace your _handleGoogleSignIn with this:
+bool _googleInFlight = false;
+Future<void> _handleGoogleSignIn() async {
+  if (_googleInFlight) return;           // 👈 hard guard
+  _googleInFlight = true;
+  setState(() => _isLoading = true);
+
+  try {
+    // Android/iOS: native provider flow (opens custom tab or browser)
+    // Web: popup
+    final provider = GoogleAuthProvider()
+      ..setCustomParameters({'prompt': 'select_account'});
+
+    final UserCredential cred = kIsWeb
+        ? await FirebaseAuth.instance.signInWithPopup(provider)
+        : await FirebaseAuth.instance.signInWithProvider(provider);
+
+    // success
+    if (!mounted) return;
+    _navigateToHome();
+  } on FirebaseAuthException catch (e) {
+    // Benign user cancellations you can ignore without showing an error
+    const benign = {'web-context-canceled', 'popup-closed-by-user', 'user-cancelled'};
+    if (!benign.contains(e.code)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google sign-in failed (${e.code}): ${e.message ?? ''}')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Google sign-in failed: $e')),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+    _googleInFlight = false;
+  }
+}
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Apple Sign-In not implemented yet')),
+    );
+  }
+
+  Future<void> _handleEmailSignIn(String email, String password) async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.I.signInWithEmail(email, password);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _navigateToHome();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Email sign-in failed')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Email sign-in failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleEmailSignUp(String email, String password) async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.I.signUpWithEmail(email, password);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _navigateToHome();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Email sign-up failed')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Email sign-up failed: $e')),
+      );
+    }
   }
 
   void _handleBackNavigation() {
     switch (_currentStep) {
       case AuthenticationStep.otpVerification:
         setState(() => _currentStep = AuthenticationStep.phoneInput);
-        _pageController.animateToPage(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        _pageController.animateToPage(0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut);
         break;
       case AuthenticationStep.emailAuth:
         setState(() => _currentStep = AuthenticationStep.phoneInput);
-        _pageController.animateToPage(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        _pageController.animateToPage(0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut);
         break;
       default:
         Navigator.pop(context);

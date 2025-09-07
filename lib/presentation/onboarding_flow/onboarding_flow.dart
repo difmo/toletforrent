@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -71,15 +73,27 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 
   void _skipOnboarding() {
-    Navigator.pushReplacementNamed(context, '/authentication-screen');
+    _completeOnboarding('/authentication-screen');
   }
 
   void _getStarted() {
-    Navigator.pushReplacementNamed(context, '/authentication-screen');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _completeOnboarding('/home-screen');
+    } else {
+      _completeOnboarding('/authentication-screen');
+    }
   }
 
   void _signIn() {
-    Navigator.pushReplacementNamed(context, '/authentication-screen');
+    _completeOnboarding('/authentication-screen');
+  }
+
+  Future<void> _completeOnboarding(String nextRoute) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarded', true);
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, nextRoute);
   }
 
   @override

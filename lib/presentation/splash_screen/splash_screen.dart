@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_export.dart';
 import '../../theme/app_theme.dart';
@@ -23,64 +25,11 @@ class _SplashScreenState extends State<SplashScreen>
   bool _showLoading = false;
   bool _showRetry = false;
   bool _isInitializing = false;
+
+  // resolved at runtime
+  bool _isAuthenticated = false;
+  bool _isFirstTime = true;
   String? _storedDeepLink;
-
-  // Mock user data for demonstration
-  final Map<String, dynamic> _mockUserData = {
-    "isAuthenticated": false,
-    "isFirstTime": true,
-    "userId": null,
-    "userLocation": {
-      "city": "Mumbai",
-      "state": "Maharashtra",
-      "coordinates": {"lat": 19.0760, "lng": 72.8777}
-    },
-    "preferences": {
-      "propertyType": "apartment",
-      "priceRange": {"min": 10000, "max": 50000},
-      "bhkPreference": "2bhk"
-    }
-  };
-
-  // Mock featured properties data
-  final List<Map<String, dynamic>> _mockFeaturedProperties = [
-    {
-      "id": "prop_001",
-      "title": "Spacious 2BHK in Bandra West",
-      "price": "₹45,000",
-      "location": "Bandra West, Mumbai",
-      "image":
-          "https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "verified": true,
-      "available": true,
-      "bhk": "2BHK",
-      "area": "850 sq ft"
-    },
-    {
-      "id": "prop_002",
-      "title": "Modern 3BHK with Sea View",
-      "price": "₹75,000",
-      "location": "Worli, Mumbai",
-      "image":
-          "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "verified": true,
-      "available": true,
-      "bhk": "3BHK",
-      "area": "1200 sq ft"
-    },
-    {
-      "id": "prop_003",
-      "title": "Cozy 1BHK Near Metro Station",
-      "price": "₹28,000",
-      "location": "Andheri East, Mumbai",
-      "image":
-          "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "verified": false,
-      "available": true,
-      "bhk": "1BHK",
-      "area": "600 sq ft"
-    }
-  ];
 
   @override
   void initState() {
@@ -102,16 +51,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _handleDeepLink() {
-    // Simulate deep link handling
+    // TODO: plug real deep link handler; keeping a sample for now.
     final Uri? deepLink = Uri.tryParse('/property-detail-screen?id=prop_001');
-    if (deepLink != null) {
-      _storedDeepLink = deepLink.toString();
-    }
+    if (deepLink != null) _storedDeepLink = deepLink.toString();
   }
 
-  void _startInitialization() async {
+  Future<void> _startInitialization() async {
     if (_isInitializing) return;
-
     setState(() {
       _isInitializing = true;
       _showRetry = false;
@@ -120,84 +66,86 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       // Start logo animation
       await Future.delayed(const Duration(milliseconds: 500));
-
-      // Show tagline after logo animation starts
-      setState(() {
-        _showTagline = true;
-      });
+      setState(() => _showTagline = true);
 
       // Show loading indicator
       await Future.delayed(const Duration(milliseconds: 800));
-      setState(() {
-        _showLoading = true;
-      });
+      setState(() => _showLoading = true);
 
-      // Perform initialization tasks
+      // Perform real checks (auth + first run)
       await _performInitializationTasks();
 
-      // Complete initialization
       await Future.delayed(const Duration(milliseconds: 500));
       _navigateToNextScreen();
-    } catch (e) {
-      // Show retry option after timeout
+    } catch (_) {
+      // Show retry after a small delay
       await Future.delayed(const Duration(seconds: 5));
-      if (mounted) {
-        setState(() {
-          _showLoading = false;
-          _showRetry = true;
-          _isInitializing = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _showLoading = false;
+        _showRetry = true;
+        _isInitializing = false;
+      });
     }
   }
 
   Future<void> _performInitializationTasks() async {
-    // Simulate checking authentication status
-    await Future.delayed(const Duration(milliseconds: 800));
+    // 1) First-run flag (SharedPreferences)
+    final prefs = await SharedPreferences.getInstance();
+    _isFirstTime = !(prefs.getBool('onboarded') ?? false);
 
-    // Simulate loading user location preferences
-    await Future.delayed(const Duration(milliseconds: 600));
+    // 2) Auth status
+    final auth = FirebaseAuth.instance;
 
-    // Simulate fetching featured property data
-    await Future.delayed(const Duration(milliseconds: 700));
+    // Use currentUser if available immediately
+    User? u = auth.currentUser;
 
-    // Simulate preparing cached listings
-    await Future.delayed(const Duration(milliseconds: 500));
+    // If null, wait briefly for the first auth event (helpful right after app install)
+    if (u == null) {
+      try {
+        u = await auth.authStateChanges().first.timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
+      } catch (_) {
+        // ignore and treat as signed out
+      }
+    }
+
+    _isAuthenticated = u != null;
+
+    // (Optional) preload anything else here: feature flags, remote config, etc.
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   void _navigateToNextScreen() {
     if (!mounted) return;
 
-    final bool isAuthenticated = _mockUserData["isAuthenticated"] as bool;
-    final bool isFirstTime = _mockUserData["isFirstTime"] as bool;
-
     String nextRoute;
 
-    if (isFirstTime) {
+    if (_isFirstTime) {
       nextRoute = '/onboarding-flow';
-    } else if (!isAuthenticated) {
-      nextRoute = '/authentication-screen';
+    } else if (_isAuthenticated) {
+      nextRoute = _storedDeepLink ?? '/home-screen';
     } else {
-      nextRoute = '/home-screen';
+      nextRoute = '/authentication-screen';
     }
 
-    // Handle deep link if stored
-    if (_storedDeepLink != null && isAuthenticated) {
-      nextRoute = _storedDeepLink!;
-    }
-
-    Navigator.pushReplacementNamed(context, nextRoute);
+    // Ensure navigation happens after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, nextRoute);
+      }
+    });
   }
 
   void _handleRetry() {
-    setState(() {
-      _showRetry = false;
-    });
+    setState(() => _showRetry = false);
     _startInitialization();
   }
 
   void _onLogoAnimationComplete() {
-    // Logo animation completed, continue with initialization
+    // hook if you want
   }
 
   @override
@@ -228,31 +176,21 @@ class _SplashScreenState extends State<SplashScreen>
                       AnimatedLogoWidget(
                         onAnimationComplete: _onLogoAnimationComplete,
                       ),
-
                       SizedBox(height: 4.h),
-
                       // Tagline
-                      TaglineWidget(
-                        isVisible: _showTagline,
-                      ),
+                      TaglineWidget(isVisible: _showTagline),
                     ],
                   ),
                 ),
               ),
-
               // Bottom section with loading/retry
-              Container(
+              SizedBox(
                 height: 20.h,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Loading Indicator
                     if (!_showRetry)
-                      LoadingIndicatorWidget(
-                        isVisible: _showLoading,
-                      ),
-
-                    // Retry Widget
+                      LoadingIndicatorWidget(isVisible: _showLoading),
                     if (_showRetry)
                       RetryWidget(
                         isVisible: _showRetry,

@@ -13,7 +13,8 @@ import './widgets/property_map_section.dart';
 import './widgets/similar_properties_section.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
-  const PropertyDetailScreen({super.key});
+  final String? propertyId;
+  const PropertyDetailScreen({super.key, this.propertyId});
 
   @override
   State<PropertyDetailScreen> createState() => _PropertyDetailScreenState();
