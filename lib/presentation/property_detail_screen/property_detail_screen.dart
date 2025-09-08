@@ -80,7 +80,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController()..addListener(_scrollListener);
-    // Resolve propertyId from widget or route args
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final routeArg = ModalRoute.of(context)?.settings.arguments;
       final fromArgs = (routeArg is Map && routeArg['propertyId'] != null)
@@ -190,6 +189,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               'Schedule Property Visit',
               style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: AppTheme.lightTheme.colorScheme.onSurface,
               ),
             ),
           ),
@@ -435,7 +435,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     floating: false,
                     pinned: true,
                     backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.onSurface, 
+                    foregroundColor: theme.colorScheme.onSurface,
                     elevation: 0,
                     leading: IconButton(
                       onPressed: () => Navigator.pop(context),

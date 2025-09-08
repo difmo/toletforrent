@@ -154,16 +154,23 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.lightTheme.colorScheme.primary,
-              AppTheme.lightTheme.colorScheme.primaryContainer,
-            ],
-          ),
+       decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+        AppTheme.lightTheme.colorScheme.primary,
+        AppTheme.lightTheme.colorScheme.secondary,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      boxShadow: [
+        BoxShadow(
+        color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+        blurRadius: 8,
+        offset: const Offset(0, 4),
         ),
+      ],
+      ),
         child: SafeArea(
           child: Column(
             children: [

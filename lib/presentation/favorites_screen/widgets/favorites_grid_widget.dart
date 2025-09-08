@@ -20,28 +20,43 @@ class FavoritesGridWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 100.w > 600 ? 3 : 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 3.w,
-        mainAxisSpacing: 2.h,
-      ),
-      itemCount: properties.length,
-      itemBuilder: (context, index) {
-        return _PropertyCard(
-          property: properties[index],
-          onTap: () => onPropertyTap(properties[index]),
-          onFavoriteTap: () => onFavoriteTap(properties[index]),
-          onShareTap: () => onShareTap(properties[index]),
-          onContactTap: () => onContactTap(properties[index]),
-          onLongPress: () => _showQuickActions(context, properties[index]),
-        );
-      },
-    );
-  }
+Widget build(BuildContext context) {
+  final isWide = 100.w > 600;
+  final crossAxisCount = isWide ? 3 : 2;
+
+  // spacing/padding
+  final horizontalPad = 4.w;
+  final crossGap = 3.w;
+  final mainGap = 2.h;
+
+  // compute tile size
+  final tileWidth =
+      (100.w - horizontalPad * 2 - crossGap * (crossAxisCount - 1)) /
+          crossAxisCount;
+  final tileHeight = isWide ? tileWidth * 1.50 : tileWidth * 1.55;
+
+  return GridView.builder(
+    padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 2.h),
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: crossAxisCount,
+      crossAxisSpacing: crossGap,
+      mainAxisSpacing: mainGap,
+      mainAxisExtent: tileHeight, // <-- critical so the card has enough height
+    ),
+    itemCount: properties.length,
+    itemBuilder: (context, index) {
+      return _PropertyCard(
+        property: properties[index],
+        onTap: () => onPropertyTap(properties[index]),
+        onFavoriteTap: () => onFavoriteTap(properties[index]),
+        onShareTap: () => onShareTap(properties[index]),
+        onContactTap: () => onContactTap(properties[index]),
+        onLongPress: () => _showQuickActions(context, properties[index]),
+      );
+    },
+  );
+}
+
 
   void _showQuickActions(BuildContext context, Map<String, dynamic> property) {
     showModalBottomSheet(
@@ -70,10 +85,8 @@ class FavoritesGridWidget extends StatelessWidget {
                 color: AppTheme.lightTheme.colorScheme.error,
                 size: 24,
               ),
-              title: Text(
-                'Remove from Favorites',
-                style: AppTheme.lightTheme.textTheme.bodyLarge,
-              ),
+              title: Text('Remove from Favorites',
+                  style: AppTheme.lightTheme.textTheme.bodyLarge),
               onTap: () {
                 Navigator.pop(context);
                 onFavoriteTap(property);
@@ -85,10 +98,8 @@ class FavoritesGridWidget extends StatelessWidget {
                 color: AppTheme.lightTheme.colorScheme.primary,
                 size: 24,
               ),
-              title: Text(
-                'Share Property',
-                style: AppTheme.lightTheme.textTheme.bodyLarge,
-              ),
+              title: Text('Share Property',
+                  style: AppTheme.lightTheme.textTheme.bodyLarge),
               onTap: () {
                 Navigator.pop(context);
                 onShareTap(property);
@@ -100,10 +111,8 @@ class FavoritesGridWidget extends StatelessWidget {
                 color: AppTheme.lightTheme.colorScheme.secondary,
                 size: 24,
               ),
-              title: Text(
-                'Contact Owner',
-                style: AppTheme.lightTheme.textTheme.bodyLarge,
-              ),
+              title: Text('Contact Owner',
+                  style: AppTheme.lightTheme.textTheme.bodyLarge),
               onTap: () {
                 Navigator.pop(context);
                 onContactTap(property);
@@ -136,6 +145,14 @@ class _PropertyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Safe location + distance
+    final String location = ((property['location'] ??
+            property['locationText'] ??
+            property['address'] ??
+            '') as String)
+        .trim();
+    final String distance = (property['distance']?.toString() ?? '').trim();
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -152,30 +169,20 @@ class _PropertyCard extends StatelessWidget {
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            // Property Image
-            Expanded(
-              flex: 5,
+            // ---- Image header (predictable height) ----
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Stack(
                 children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
-                    ),
-                    child: ClipRRect(
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: CustomImageWidget(
-                        imageUrl: property['image'],
-                        fit: BoxFit.cover,
-                      ),
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: CustomImageWidget(
+                      imageUrl: property['image'],
+                      fit: BoxFit.cover,
                     ),
                   ),
-
-                  // Favorite Icon
                   Positioned(
                     top: 2.w,
                     right: 2.w,
@@ -198,14 +205,12 @@ class _PropertyCard extends StatelessWidget {
                         ),
                         child: Icon(
                           Icons.favorite,
-                          size: 20,
+                          size: 18,
                           color: AppTheme.lightTheme.colorScheme.error,
                         ),
                       ),
                     ),
                   ),
-
-                  // To-Let Tag
                   Positioned(
                     top: 2.w,
                     left: 2.w,
@@ -218,8 +223,7 @@ class _PropertyCard extends StatelessWidget {
                       ),
                       child: Text(
                         'TO-LET',
-                        style:
-                            AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
                           color: AppTheme.lightTheme.colorScheme.onPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 10,
@@ -227,15 +231,13 @@ class _PropertyCard extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  // Verification Badge
                   if (property['isVerified'] == true)
                     Positioned(
                       bottom: 2.w,
                       right: 2.w,
                       child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 2.w, vertical: 1.w),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.w),
                         decoration: BoxDecoration(
                           color: AppTheme.lightTheme.colorScheme.secondary,
                           borderRadius: BorderRadius.circular(6),
@@ -243,19 +245,16 @@ class _PropertyCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.verified,
-                              size: 12,
-                              color:
-                                  AppTheme.lightTheme.colorScheme.onSecondary,
-                            ),
+                            Icon(Icons.verified, size: 12,
+                                color:
+                                    AppTheme.lightTheme.colorScheme.onSecondary),
                             SizedBox(width: 1.w),
                             Text(
                               'Verified',
                               style: AppTheme.lightTheme.textTheme.labelSmall
                                   ?.copyWith(
-                                color:
-                                    AppTheme.lightTheme.colorScheme.onSecondary,
+                                color: AppTheme
+                                    .lightTheme.colorScheme.onSecondary,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 10,
                               ),
@@ -268,91 +267,107 @@ class _PropertyCard extends StatelessWidget {
               ),
             ),
 
-            // Property Details
+            // ---- Details + actions (compact) ----
             Expanded(
-              flex: 4,
               child: Padding(
                 padding: EdgeInsets.all(3.w),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // compact
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Price
-                    Text(
-                      property['price'],
-                      style:
-                          AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    SizedBox(height: 1.w),
-
-                    // Location with distance
-                    Row(
+                    // Top texts
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            property['location'],
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onSurface
-                                  .withValues(alpha: 0.8),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          (property['price'] ?? '').toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.lightTheme.textTheme.titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.lightTheme.colorScheme.primary,
                           ),
                         ),
-                        if (property['distance'] != null) ...[
-                          SizedBox(width: 1.w),
-                          Text(
-                            property['distance'],
-                            style: AppTheme.lightTheme.textTheme.labelSmall
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        if (location.isNotEmpty || distance.isNotEmpty) ...[
+                          SizedBox(height: 0.6.h),
+                          Row(
+                            children: [
+                              if (location.isNotEmpty)
+                                Expanded(
+                                  child: Text(
+                                    location,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: AppTheme
+                                          .lightTheme.colorScheme.onSurface
+                                          .withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ),
+                              if (location.isNotEmpty && distance.isNotEmpty)
+                                SizedBox(width: 1.w),
+                              if (distance.isNotEmpty)
+                                Text(
+                                  distance,
+                                  style: AppTheme
+                                      .lightTheme.textTheme.labelSmall
+                                      ?.copyWith(
+                                    color: AppTheme
+                                        .lightTheme.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
+                        SizedBox(height: 0.6.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (property['bhk'] ?? '').toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTheme
+                                    .lightTheme.textTheme.labelMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            SizedBox(width: 1.w),
+                            Expanded(
+                              child: Text(
+                                '• ${(property['type'] ?? '').toString()}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTheme
+                                    .lightTheme.textTheme.labelMedium
+                                    ?.copyWith(
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
 
-                    SizedBox(height: 2.w),
-
-                    // BHK and Type
-                    Row(
-                      children: [
-                        Text(
-                          property['bhk'],
-                          style: AppTheme.lightTheme.textTheme.labelMedium
-                              ?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          ' • ${property['type']}',
-                          style: AppTheme.lightTheme.textTheme.labelMedium
-                              ?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.onSurface
-                                .withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const Spacer(),
-
-                    // Action Buttons
+                    // Buttons
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: onShareTap,
                             style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.symmetric(vertical: 1.w),
-                              minimumSize: Size.zero,
                               side: BorderSide(
                                 color: AppTheme.lightTheme.colorScheme.primary
                                     .withValues(alpha: 0.5),
@@ -373,9 +388,7 @@ class _PropertyCard extends StatelessWidget {
                                   'Share',
                                   style: AppTheme
                                       .lightTheme.textTheme.labelSmall
-                                      ?.copyWith(
-                                    fontSize: 10,
-                                  ),
+                                      ?.copyWith(fontSize: 10),
                                 ),
                               ],
                             ),
@@ -386,8 +399,10 @@ class _PropertyCard extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: onContactTap,
                             style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.symmetric(vertical: 1.w),
-                              minimumSize: Size.zero,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -395,8 +410,8 @@ class _PropertyCard extends StatelessWidget {
                                 CustomIconWidget(
                                   iconName: 'phone',
                                   size: 14,
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.onPrimary,
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onPrimary,
                                 ),
                                 SizedBox(width: 1.w),
                                 Text(

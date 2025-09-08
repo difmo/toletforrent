@@ -51,17 +51,21 @@ class _FilterSectionWidgetState extends State<FilterSectionWidget> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildFilterHeader(),
-          if (_isExpanded) ...[
-            _buildPriceRangeFilter(),
-            _buildBHKFilter(),
-            _buildPropertyTypeFilter(),
-            _buildFurnishedStatusFilter(),
-            _buildMoreFiltersButton(),
+      child: SingleChildScrollView(
+        child: Column(
+          
+          children: [
+            _buildFilterHeader(),
+            if (_isExpanded) ...[
+              _buildPriceRangeFilter(),
+              _buildBHKFilter(),
+              _buildPropertyTypeFilter(),
+              _buildFurnishedStatusFilter(),
+              _buildMoreFiltersButton(),
+              SizedBox(height: 2.h),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -376,12 +380,12 @@ class _FilterSectionWidgetState extends State<FilterSectionWidget> {
 
   Widget _buildMoreFiltersButton() {
     return Container(
-      padding: EdgeInsets.all(4.w),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       child: GestureDetector(
         onTap: widget.onMoreFiltersPressed,
         child: Container(
           width: double.infinity,
-          padding: EdgeInsets.symmetric(vertical: 2.h),
+          padding: EdgeInsets.symmetric(vertical: 1.h),
           decoration: BoxDecoration(
             color:
                 AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
@@ -397,7 +401,7 @@ class _FilterSectionWidgetState extends State<FilterSectionWidget> {
               CustomIconWidget(
                 iconName: 'add',
                 color: AppTheme.lightTheme.colorScheme.primary,
-                size: 20,
+                size: 12,
               ),
               SizedBox(width: 2.w),
               Text(
@@ -405,6 +409,7 @@ class _FilterSectionWidgetState extends State<FilterSectionWidget> {
                 style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                   color: AppTheme.lightTheme.colorScheme.primary,
                   fontWeight: FontWeight.w500,
+                  fontSize: 12
                 ),
               ),
             ],
@@ -416,7 +421,7 @@ class _FilterSectionWidgetState extends State<FilterSectionWidget> {
 
   int _getActiveFilterCount() {
     int count = 0;
-    if (widget.priceRange.start > 5000 || widget.priceRange.end < 100000)
+    if (widget.priceRange.start > 1000 || widget.priceRange.end < 100000)
       count++;
     if (widget.selectedBHK.isNotEmpty) count++;
     if (widget.selectedPropertyTypes.isNotEmpty) count++;
