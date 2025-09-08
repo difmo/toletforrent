@@ -106,7 +106,7 @@ class SocialLoginWidget extends StatelessWidget {
             Text(
               text,
               style: GoogleFonts.inter(
-                fontSize: 14.sp,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
                 color: textColor,
               ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:sizer/sizer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -48,12 +49,24 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
+
+    // already signed in? leave immediately
+    final u = FirebaseAuth.instance.currentUser;
+    if (u != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _routeHomeOnce());
+    }
+
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (user != null && mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-            context, '/home-screen', (_) => false);
-      }
+      if (user != null) _routeHomeOnce();
     });
+  }
+
+// inside _AuthenticationScreenState
+  bool _didRoute = false;
+  void _routeHomeOnce() {
+    if (_didRoute || !mounted) return;
+    _didRoute = true;
+    Navigator.pushNamedAndRemoveUntil(context, '/home-screen', (_) => false);
   }
 
   void _initializeAnimations() {
@@ -154,7 +167,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
             child: Text(
               'Skip',
               style: GoogleFonts.inter(
-                fontSize: 14.sp,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
                 color: AppTheme.lightTheme.colorScheme.primary,
               ),
@@ -173,7 +186,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         children: [
           SizedBox(height: 4.h),
           _buildLogo(),
-          SizedBox(height: 6.h),
+          SizedBox(height: 1.h),
           _buildWelcomeText(),
           SizedBox(height: 4.h),
           PhoneInputWidget(
@@ -253,31 +266,47 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         Container(
           width: 20.w,
           height: 10.h,
+          padding: EdgeInsets.all(2.w),
           decoration: BoxDecoration(
-            color: AppTheme.lightTheme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.lightTheme.colorScheme.primary,
+                AppTheme.lightTheme.colorScheme.secondary,
+                AppTheme.lightTheme.colorScheme.tertiary ?? Colors.white,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.lightTheme.colorScheme.primary
-                    .withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color:
+                    AppTheme.lightTheme.colorScheme.primary.withOpacity(0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+              BoxShadow(
+                color:
+                    AppTheme.lightTheme.colorScheme.secondary.withOpacity(0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Center(
-            child: CustomIconWidget(
-              iconName: 'home',
-              size: 32,
+            child: SvgPicture.asset(
+              'assets/images/logo.svg',
+              width: 12.w,
+              height: 12.w,
               color: AppTheme.lightTheme.colorScheme.onPrimary,
             ),
           ),
         ),
         SizedBox(height: 2.h),
         Text(
-          'ToLetForRent',
+          'To-Let For Rent',
           style: GoogleFonts.inter(
-            fontSize: 24.sp,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w700,
             color: AppTheme.lightTheme.colorScheme.onSurface,
           ),
@@ -286,7 +315,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         Text(
           'Find Your Perfect Home',
           style: GoogleFonts.roboto(
-            fontSize: 14.sp,
+            fontSize: 12.sp,
             color: AppTheme.lightTheme.colorScheme.onSurface
                 .withValues(alpha: 0.7),
           ),
@@ -301,7 +330,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         Text(
           'Welcome Back!',
           style: GoogleFonts.inter(
-            fontSize: 28.sp,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w700,
             color: AppTheme.lightTheme.colorScheme.onSurface,
           ),
@@ -310,7 +339,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         Text(
           'Enter your phone number to continue',
           style: GoogleFonts.roboto(
-            fontSize: 16.sp,
+            fontSize: 12.sp,
             color: AppTheme.lightTheme.colorScheme.onSurface
                 .withValues(alpha: 0.7),
           ),
@@ -324,26 +353,42 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     return SizedBox(
       width: double.infinity,
       height: 6.h,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handlePhoneSubmit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-          foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.lightTheme.colorScheme.primary,
+              AppTheme.lightTheme.colorScheme.secondary,
+              AppTheme.lightTheme.colorScheme.tertiary ?? Colors.white,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                'Continue',
-                style: GoogleFonts.inter(
-                    fontSize: 16.sp, fontWeight: FontWeight.w600),
-              ),
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _handlePhoneSubmit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  'Continue',
+                  style: GoogleFonts.inter(
+                      fontSize: 12.sp, fontWeight: FontWeight.w600),
+                ),
+        ),
       ),
     );
   }
@@ -352,25 +397,40 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     return SizedBox(
       width: double.infinity,
       height: 6.h,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleOtpVerification,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-          foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.lightTheme.colorScheme.primary,
+              AppTheme.lightTheme.colorScheme.secondary,
+              AppTheme.lightTheme.colorScheme.tertiary ?? Colors.white,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                'Verify & Continue',
-                style: GoogleFonts.inter(
-                    fontSize: 16.sp, fontWeight: FontWeight.w600),
-              ),
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _handleOtpVerification,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: EdgeInsets.zero,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  'Verify & Continue',
+                  style: GoogleFonts.inter(
+                      fontSize: 12.sp, fontWeight: FontWeight.w600),
+                ),
+        ),
       ),
     );
   }
@@ -382,7 +442,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         Text(
           'Prefer email? ',
           style: GoogleFonts.roboto(
-            fontSize: 14.sp,
+            fontSize: 12.sp,
             color: AppTheme.lightTheme.colorScheme.onSurface
                 .withValues(alpha: 0.7),
           ),
@@ -397,7 +457,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
           child: Text(
             'Sign in with Email',
             style: GoogleFonts.inter(
-              fontSize: 14.sp,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w500,
               color: AppTheme.lightTheme.colorScheme.primary,
             ),
@@ -523,43 +583,54 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     }
   }
 
-// Replace your _handleGoogleSignIn with this:
-bool _googleInFlight = false;
-Future<void> _handleGoogleSignIn() async {
-  if (_googleInFlight) return;           // 👈 hard guard
-  _googleInFlight = true;
-  setState(() => _isLoading = true);
+  bool _googleInFlight = false;
 
-  try {
-    // Android/iOS: native provider flow (opens custom tab or browser)
-    // Web: popup
-    final provider = GoogleAuthProvider()
-      ..setCustomParameters({'prompt': 'select_account'});
-
-    final UserCredential cred = kIsWeb
-        ? await FirebaseAuth.instance.signInWithPopup(provider)
-        : await FirebaseAuth.instance.signInWithProvider(provider);
-
-    // success
-    if (!mounted) return;
-    _navigateToHome();
-  } on FirebaseAuthException catch (e) {
-    // Benign user cancellations you can ignore without showing an error
-    const benign = {'web-context-canceled', 'popup-closed-by-user', 'user-cancelled'};
-    if (!benign.contains(e.code)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google sign-in failed (${e.code}): ${e.message ?? ''}')),
-      );
+  Future<void> _handleGoogleSignIn() async {
+    if (_googleInFlight) return;
+    if (FirebaseAuth.instance.currentUser != null) {
+      _routeHomeOnce();
+      return;
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Google sign-in failed: $e')),
-    );
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
-    _googleInFlight = false;
+
+    _googleInFlight = true;
+    setState(() => _isLoading = true);
+    try {
+      final provider =
+          GoogleAuthProvider(); // no custom prompt -> avoids re-chooser
+      if (kIsWeb) {
+        await FirebaseAuth.instance.signInWithPopup(provider);
+      } else {
+        await FirebaseAuth.instance.signInWithProvider(provider);
+      }
+
+      // Sign-in is done; route now (in case the stream is late).
+      if (mounted) _routeHomeOnce();
+    } on FirebaseAuthException catch (e) {
+      const benign = {
+        'web-context-canceled',
+        'popup-closed-by-user',
+        'user-cancelled'
+      };
+      if (!benign.contains(e.code)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Google sign-in failed (${e.code}): ${e.message ?? ''}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign-in failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+      _googleInFlight = false;
+    }
   }
-}
 
   Future<void> _handleAppleSignIn() async {
     setState(() => _isLoading = true);

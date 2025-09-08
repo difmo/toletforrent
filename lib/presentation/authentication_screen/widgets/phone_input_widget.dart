@@ -39,7 +39,7 @@ class _PhoneInputWidgetState extends State<PhoneInputWidget> {
         Text(
           'Phone Number',
           style: GoogleFonts.inter(
-            fontSize: 14.sp,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w500,
             color: AppTheme.lightTheme.colorScheme.onSurface,
           ),
