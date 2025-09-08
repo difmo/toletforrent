@@ -30,7 +30,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Role / Language / Privacy
   final _languages = const ['English', 'हिंदी', 'मराठी'];
-  final _roles = const ['tenant', 'owner', 'both'];
+  final _roles = const ['tenant', 'owner', 'both', 'user'];
+
   String _selectedLanguage = 'English';
   String _role = 'tenant';
   bool _notificationsEnabled = true;
@@ -65,7 +66,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   DocumentReference<Map<String, dynamic>>? get _userRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
-    return FirebaseFirestore.instance.collection('users').doc(uid);
+    return FirebaseFirestore.instance.collection('toletforrent_users').doc(uid);
   }
 
   @override
@@ -123,6 +124,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return null;
   }
 
+  T coerceValue<T>(T value, List<T> allowed, T fallback) {
+    return allowed.contains(value) ? value : fallback;
+  }
+
   // ---------- load ----------
   Future<void> _load() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -136,39 +141,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final data = snap.data() ?? <String, dynamic>{};
 
       // Basic
-      _nameCtl.text   = (data['name'] ?? user.displayName ?? '').toString();
-      _phoneCtl.text  = (data['phone'] ?? '').toString();
-      _emailCtl.text  = (data['email'] ?? user.email ?? '').toString();
-      _bioCtl.text    = (data['bio'] ?? '').toString();
-      _avatarUrl      = (data['avatar'] ?? user.photoURL ?? '').toString();
-      _role           = (data['role'] ?? 'tenant').toString();
+      _nameCtl.text = (data['name'] ?? user.displayName ?? '').toString();
+      _phoneCtl.text = (data['phone'] ?? '').toString();
+      _emailCtl.text = (data['email'] ?? user.email ?? '').toString();
+      _bioCtl.text = (data['bio'] ?? '').toString();
+      _avatarUrl = (data['avatar'] ?? user.photoURL ?? '').toString();
+      _role = coerceValue<String>(
+        (data['role'] ?? 'tenant').toString(),
+        _roles,
+        'tenant',
+      );
 
       // Settings
       final settings = _asMap(data['settings']);
-      _selectedLanguage     = (settings['language'] ?? 'English').toString();
-      _notificationsEnabled = _asBool(settings['notificationsEnabled'], def: true);
-      _marketingOptIn       = _asBool(settings['marketingOptIn']);
-      _allowContact         = _asBool(settings['allowContact'], def: true);
-      _publicProfile        = _asBool(settings['publicProfile'], def: true);
+
+      _selectedLanguage = coerceValue<String>(
+        (settings['language'] ?? 'English').toString(),
+        _languages,
+        'English',
+      );
+
+      _notificationsEnabled =
+          _asBool(settings['notificationsEnabled'], def: true);
+      _marketingOptIn = _asBool(settings['marketingOptIn']);
+      _allowContact = _asBool(settings['allowContact'], def: true);
+      _publicProfile = _asBool(settings['publicProfile'], def: true);
 
       // Address
       final address = _asMap(data['address']);
       _addrLine1Ctl.text = (address['line1'] ?? '').toString();
-      _cityCtl.text      = (address['city']  ?? '').toString();
-      _stateCtl.text     = (address['state'] ?? '').toString();
-      _zipCtl.text       = (address['zip']   ?? '').toString();
-      _countryCtl.text   = (address['country'] ?? _countryCtl.text).toString();
+      _cityCtl.text = (address['city'] ?? '').toString();
+      _stateCtl.text = (address['state'] ?? '').toString();
+      _zipCtl.text = (address['zip'] ?? '').toString();
+      _countryCtl.text = (address['country'] ?? _countryCtl.text).toString();
 
       // Preferences
       final prefs = _asMap(data['preferences']);
       _budgetMinCtl.text = _asInt(prefs['budgetMin']).toString();
       _budgetMaxCtl.text = _asInt(prefs['budgetMax']).toString();
-      _bedrooms          = _asInt(prefs['bedrooms'], def: 1).clamp(0, 10);
-      _petsAllowed       = _asBool(prefs['petsAllowed']);
+
+      _bedrooms = _asInt(prefs['bedrooms'], def: 1).clamp(0, 7);
+      _petsAllowed = _asBool(prefs['petsAllowed']);
 
       // KYC
       final kyc = _asMap(data['kyc']);
-      _kycStatus = (kyc['status'] ?? 'unverified').toString();
+      _kycStatus = coerceValue<String>(
+        (kyc['status'] ?? 'unverified').toString(),
+        _kycStatuses,
+        'unverified',
+      );
       _govtIdLast4Ctl.text = (kyc['govtIdLast4'] ?? '').toString();
 
       // DOB
@@ -197,9 +218,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_pickedImage == null) return _avatarUrl;
     try {
       final file = File(_pickedImage!.path);
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('users/$uid/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final ref = FirebaseStorage.instance.ref().child(
+          'toletforrent_users/$uid/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg');
       await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
@@ -228,40 +248,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // nested payload
       final payload = <String, dynamic>{
-        'name'  : _nameCtl.text.trim(),
-        'phone' : _phoneCtl.text.trim(),
-        'email' : _emailCtl.text.trim(), // NOTE: changing Auth email needs reauth
-        'bio'   : _bioCtl.text.trim(),
+        'name': _nameCtl.text.trim(),
+        'phone': _phoneCtl.text.trim(),
+        'email':
+            _emailCtl.text.trim(), // NOTE: changing Auth email needs reauth
+        'bio': _bioCtl.text.trim(),
         'avatar': newAvatar ?? '',
-        'role'  : _role,
-        'dob'   : _dob, // Firestore will store as Timestamp
+        'role': _role,
+        'dob': _dob, // Firestore will store as Timestamp
         'lastUpdatedAt': FieldValue.serverTimestamp(),
         // address block
         'address': {
-          'line1'  : _addrLine1Ctl.text.trim(),
-          'city'   : _cityCtl.text.trim(),
-          'state'  : _stateCtl.text.trim(),
-          'zip'    : _zipCtl.text.trim(),
+          'line1': _addrLine1Ctl.text.trim(),
+          'city': _cityCtl.text.trim(),
+          'state': _stateCtl.text.trim(),
+          'zip': _zipCtl.text.trim(),
           'country': _countryCtl.text.trim(),
         },
         // preferences block
         'preferences': {
-          'budgetMin' : _toIntOrNull(_budgetMinCtl.text.trim()),
-          'budgetMax' : _toIntOrNull(_budgetMaxCtl.text.trim()),
-          'bedrooms'  : _bedrooms,
+          'budgetMin': _toIntOrNull(_budgetMinCtl.text.trim()),
+          'budgetMax': _toIntOrNull(_budgetMaxCtl.text.trim()),
+          'bedrooms': _bedrooms,
           'petsAllowed': _petsAllowed,
         },
         // settings block
         'settings': {
-          'language'            : _selectedLanguage,
+          'language': _selectedLanguage,
           'notificationsEnabled': _notificationsEnabled,
-          'marketingOptIn'      : _marketingOptIn,
-          'allowContact'        : _allowContact,
-          'publicProfile'       : _publicProfile,
+          'marketingOptIn': _marketingOptIn,
+          'allowContact': _allowContact,
+          'publicProfile': _publicProfile,
         },
         // kyc-lite
         'kyc': {
-          'status'     : _kycStatus,
+          'status': _kycStatus,
           'govtIdLast4': _govtIdLast4Ctl.text.trim(),
         },
       };
@@ -308,17 +329,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       total++;
       final v = p[key];
       return (v is String && v.trim().isNotEmpty) ||
-             (v is Map && v.isNotEmpty) ||
-             (v is bool) ||
-             (v is num) ||
-             (v is DateTime);
+          (v is Map && v.isNotEmpty) ||
+          (v is bool) ||
+          (v is num) ||
+          (v is DateTime);
     }
 
-    if (_has('name'))           if (p['name'].toString().isNotEmpty) filled++;
-    if (_has('phone'))          if (p['phone'].toString().isNotEmpty) filled++;
-    if (_has('avatar'))         if (p['avatar'].toString().isNotEmpty) filled++;
-    if (_has('role'))           if (p['role'].toString().isNotEmpty) filled++;
-    if (_has('dob'))            if (p['dob'] != null) filled++;
+    if (_has('name')) if (p['name'].toString().isNotEmpty) filled++;
+    if (_has('phone')) if (p['phone'].toString().isNotEmpty) filled++;
+    if (_has('avatar')) if (p['avatar'].toString().isNotEmpty) filled++;
+    if (_has('role')) if (p['role'].toString().isNotEmpty) filled++;
+    if (_has('dob')) if (p['dob'] != null) filled++;
 
     final addr = _asMap(p['address']);
     total += 3;
@@ -358,7 +379,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Save'),
           ),
@@ -384,16 +406,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 : (_avatarUrl != null && _avatarUrl!.isNotEmpty)
                                     ? NetworkImage(_avatarUrl!) as ImageProvider
                                     : null,
-                            child: (_avatarUrl == null || _avatarUrl!.isEmpty) && _pickedImage == null
-                                ? Text(
-                                    _initials(_nameCtl.text),
-                                    style: GoogleFonts.inter(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 18,
-                                    ),
-                                  )
-                                : null,
+                            child:
+                                (_avatarUrl == null || _avatarUrl!.isEmpty) &&
+                                        _pickedImage == null
+                                    ? Text(
+                                        _initials(_nameCtl.text),
+                                        style: GoogleFonts.inter(
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 18,
+                                        ),
+                                      )
+                                    : null,
                           ),
                           Positioned(
                             bottom: 0,
@@ -426,21 +450,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       TextFormField(
                         controller: _nameCtl,
                         textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(hintText: 'Enter your name'),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                        decoration:
+                            const InputDecoration(hintText: 'Enter your name'),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Name is required'
+                            : null,
                       ),
                     ),
+
                     _Labeled(
                       'Role',
                       DropdownButtonFormField<String>(
-                        value: _role,
+                        value: _roles.contains(_role) ? _role : _roles.first,
                         items: _roles
-                            .map((r) => DropdownMenuItem(value: r, child: Text(r[0].toUpperCase() + r.substring(1))))
+                            .map((r) => DropdownMenuItem(
+                                value: r,
+                                child:
+                                    Text(r[0].toUpperCase() + r.substring(1))))
                             .toList(),
-                        onChanged: (v) => setState(() => _role = v ?? 'tenant'),
-                        decoration: const InputDecoration(),
+                        onChanged: (v) =>
+                            setState(() => _role = v ?? _roles.first),
                       ),
                     ),
+
                     _Labeled(
                       'Date of Birth',
                       InkWell(
@@ -460,7 +492,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       TextFormField(
                         controller: _bioCtl,
                         maxLines: 3,
-                        decoration: const InputDecoration(hintText: 'Tell us a bit about yourself'),
+                        decoration: const InputDecoration(
+                            hintText: 'Tell us a bit about yourself'),
                       ),
                     ),
 
@@ -471,7 +504,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: _phoneCtl,
                         keyboardType: TextInputType.phone,
                         textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(hintText: '+91 98xxxxxx'),
+                        decoration:
+                            const InputDecoration(hintText: '+91 98xxxxxx'),
                         validator: (v) {
                           final t = v?.trim() ?? '';
                           if (t.isEmpty) return 'Phone is required';
@@ -490,7 +524,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         decoration: const InputDecoration(
                           hintText: 'you@email.com',
                           suffixIcon: Tooltip(
-                            message: 'Changing email requires re-authentication.',
+                            message:
+                                'Changing email requires re-authentication.',
                             child: Icon(Icons.info_outline),
                           ),
                         ),
@@ -503,7 +538,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       TextFormField(
                         controller: _addrLine1Ctl,
                         textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(hintText: 'House / Flat, Street'),
+                        decoration: const InputDecoration(
+                            hintText: 'House / Flat, Street'),
                       ),
                     ),
                     Row(
@@ -563,7 +599,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             TextFormField(
                               controller: _budgetMinCtl,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: 'e.g. 15000'),
+                              decoration:
+                                  const InputDecoration(hintText: 'e.g. 15000'),
                             ),
                           ),
                         ),
@@ -574,7 +611,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             TextFormField(
                               controller: _budgetMaxCtl,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: 'e.g. 45000'),
+                              decoration:
+                                  const InputDecoration(hintText: 'e.g. 45000'),
                             ),
                           ),
                         ),
@@ -583,11 +621,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _Labeled(
                       'Bedrooms',
                       DropdownButtonFormField<int>(
-                        value: _bedrooms,
-                        items: List.generate(8, (i) => i)
-                            .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Studio' : '$n BHK')))
-                            .toList(),
-                        onChanged: (v) => setState(() => _bedrooms = v ?? 1),
+                        value:
+                            (_bedrooms >= 0 && _bedrooms <= 7) ? _bedrooms : 1,
+                        items: List.generate(
+                            8,
+                            (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text(i == 0 ? 'Studio' : '$i BHK'))),
+                        onChanged: (v) =>
+                            setState(() => _bedrooms = (v ?? 1).clamp(0, 7)),
                       ),
                     ),
                     SwitchListTile.adaptive(
@@ -601,16 +643,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _Labeled(
                       'Language',
                       DropdownButtonFormField<String>(
-                        value: _selectedLanguage,
+                        value: _languages.contains(_selectedLanguage)
+                            ? _selectedLanguage
+                            : _languages.first,
                         items: _languages
-                            .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                            .map((l) =>
+                                DropdownMenuItem(value: l, child: Text(l)))
                             .toList(),
-                        onChanged: (v) => setState(() => _selectedLanguage = v ?? 'English'),
+                        onChanged: (v) => setState(
+                            () => _selectedLanguage = v ?? _languages.first),
                       ),
                     ),
                     SwitchListTile.adaptive(
                       value: _notificationsEnabled,
-                      onChanged: (v) => setState(() => _notificationsEnabled = v),
+                      onChanged: (v) =>
+                          setState(() => _notificationsEnabled = v),
                       title: const Text('Push Notifications'),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -637,11 +684,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _Labeled(
                       'Status',
                       DropdownButtonFormField<String>(
-                        value: _kycStatus,
+                        value: _kycStatuses.contains(_kycStatus)
+                            ? _kycStatus
+                            : _kycStatuses.first,
                         items: _kycStatuses
-                            .map((s) => DropdownMenuItem(value: s, child: Text(s[0].toUpperCase() + s.substring(1))))
+                            .map((s) => DropdownMenuItem(
+                                value: s,
+                                child:
+                                    Text(s[0].toUpperCase() + s.substring(1))))
                             .toList(),
-                        onChanged: (v) => setState(() => _kycStatus = v ?? 'unverified'),
+                        onChanged: (v) => setState(
+                            () => _kycStatus = v ?? _kycStatuses.first),
                       ),
                     ),
                     _Labeled(
@@ -707,7 +760,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
     if (parts.isEmpty) return 'U';
     final first = parts.first[0];
     final last = parts.length > 1 ? parts.last[0] : '';
@@ -728,7 +782,8 @@ class _SectionHeader extends StatelessWidget {
       padding: EdgeInsets.only(top: 1.2.h, bottom: 0.6.h),
       child: Text(
         title,
-        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        style:
+            theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -747,7 +802,9 @@ class _Labeled extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(label,
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600)),
           SizedBox(height: 0.6.h),
           child,
         ],

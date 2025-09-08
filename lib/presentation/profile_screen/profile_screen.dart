@@ -24,7 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   DocumentReference<Map<String, dynamic>>? get _userRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
-    return FirebaseFirestore.instance.collection('users').doc(uid);
+    return FirebaseFirestore.instance.collection('toletforrent_users').doc(uid);
   }
 
   CollectionReference<Map<String, dynamic>>? get _historyRef =>
@@ -136,16 +136,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                     return FlexibleSpaceBar(
                       centerTitle: false,
                       titlePadding: EdgeInsetsDirectional.only(
-                        start: 4.w,
+                        start: 12.w,
                         bottom: 1.6.h,
                         end: 4.w,
                       ),
                       title: Text(
-                        'Profile',
+                        '',
                         style: theme.textTheme.titleLarge?.copyWith(
-                          color: theme.colorScheme.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                            color: theme.colorScheme.onPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10.sp),
                       ),
                       background: _buildProfileHeader(
                         name: name,
@@ -191,7 +191,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
 
                       SizedBox(height: 2.h),
-
                       // Account Section
                       ProfileSectionWidget(
                         title: 'Account',
@@ -461,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               ],
             ),
-            SizedBox(height: 2.h),
+            // SizedBox(height: 2.h),
             // Name + verified
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -800,142 +799,171 @@ class _ProfileScreenState extends State<ProfileScreen>
                         final views = (d['views'] ?? 0) as int;
                         final inquiries = (d['inquiries'] ?? 0) as int;
 
-                        return Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(4.w),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: CustomImageWidget(
-                                        imageUrl: img,
-                                        width: 20.w,
-                                        height: 20.w,
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/property-detail-screen',
+                              arguments: {'propertyId': docs[index].id},
+                            );
+                            // Navigator.pushNamed(
+                            //   context,
+                            //   '/property-details-screen',
+                            //   arguments: {
+                            //   'propertyId': docs[index].id,
+                            //   'propertyData': d,
+                            //   },
+                            // );
+                          },
+                          child: Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(4.w),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: CustomImageWidget(
+                                          imageUrl: img,
+                                          width: 20.w,
+                                          height: 20.w,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 4.w),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  title,
-                                                  style: theme
-                                                      .textTheme.titleMedium
-                                                      ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
+                                      SizedBox(width: 4.w),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    title,
+                                                    style: theme
+                                                        .textTheme.titleMedium
+                                                        ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              PopupMenuButton<String>(
-                                                onSelected: (value) {
-                                                  if (value == 'edit') {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                          content: Text(
-                                                              'Edit listing coming soon')),
-                                                    );
-                                                  } else if (value ==
-                                                      'delete') {
-                                                    _confirmDeleteListing(
-                                                        docs[index].id, title);
-                                                  }
-                                                },
-                                                itemBuilder: (context) =>
-                                                    const [
-                                                  PopupMenuItem(
-                                                    value: 'edit',
-                                                    child: Text('Edit Listing'),
-                                                  ),
-                                                  PopupMenuItem(
-                                                    value: 'delete',
-                                                    child:
-                                                        Text('Delete Listing'),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            _formatCurrency(rent),
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
-                                              color: theme.colorScheme.primary,
-                                              fontWeight: FontWeight.w600,
+                                                PopupMenuButton<String>(
+                                                  onSelected: (value) {
+                                                    if (value == 'edit') {
+                                                      Navigator.pop(context);
+                                                      Navigator.pushNamed(
+                                                        context,
+                                                        '/add-property-screen',
+                                                        arguments: {
+                                                          'propertyId':
+                                                              docs[index].id,
+                                                          'propertyData': d,
+                                                        },
+                                                      );
+                                                    } else if (value ==
+                                                        'delete') {
+                                                      _confirmDeleteListing(
+                                                          docs[index].id,
+                                                          title);
+                                                    }
+                                                  },
+                                                  itemBuilder: (context) =>
+                                                      const [
+                                                    PopupMenuItem(
+                                                      value: 'edit',
+                                                      child:
+                                                          Text('Edit Listing'),
+                                                    ),
+                                                    PopupMenuItem(
+                                                      value: 'delete',
+                                                      child: Text(
+                                                          'Delete Listing'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                          Text(
-                                            'Posted $posted',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                              color: theme.colorScheme.onSurface
-                                                  .withValues(alpha: 0.6),
+                                            Text(
+                                              _formatCurrency(rent),
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
+                                            Text(
+                                              'Posted $posted',
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color: theme
+                                                    .colorScheme.onSurface
+                                                    .withValues(alpha: 0.6),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2.h),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(status),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10.sp,
+                                            fontWeight: FontWeight.w600,
+                                            color:
+                                                theme.colorScheme.onSecondary,
                                           ),
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          CustomIconWidget(
+                                            iconName: 'visibility',
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                            size: 16,
+                                          ),
+                                          SizedBox(width: 1.w),
+                                          Text('$views',
+                                              style: theme.textTheme.bodySmall),
+                                          SizedBox(width: 3.w),
+                                          CustomIconWidget(
+                                            iconName: 'message',
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                            size: 16,
+                                          ),
+                                          SizedBox(width: 1.w),
+                                          Text('$inquiries',
+                                              style: theme.textTheme.bodySmall),
                                         ],
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 2.h),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: _getStatusColor(status),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Text(
-                                        status,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.sp,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.onSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        CustomIconWidget(
-                                          iconName: 'visibility',
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 1.w),
-                                        Text('$views',
-                                            style: theme.textTheme.bodySmall),
-                                        SizedBox(width: 3.w),
-                                        CustomIconWidget(
-                                          iconName: 'message',
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 1.w),
-                                        Text('$inquiries',
-                                            style: theme.textTheme.bodySmall),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -954,16 +982,15 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ---------- Actions ----------
 
   void _goToEditProfile() {
-    Navigator.pushNamed(context, '/edit-profile');
+    Navigator.pushNamed(context, '/edit-profile-screen');
   }
 
-Future<void> _patchSettings(Map<String, dynamic> patch) async {
-  if (_userRef == null) return;
-  final Map<String, dynamic> dotPatch = {};
-  patch.forEach((k, v) => dotPatch['settings.$k'] = v);
-  await _userRef!.set(dotPatch, SetOptions(merge: true));
-}
-
+  Future<void> _patchSettings(Map<String, dynamic> patch) async {
+    if (_userRef == null) return;
+    final Map<String, dynamic> dotPatch = {};
+    patch.forEach((k, v) => dotPatch['settings.$k'] = v);
+    await _userRef!.set(dotPatch, SetOptions(merge: true));
+  }
 
   void _confirmDeleteListing(String docId, String title) {
     final theme = AppTheme.lightTheme;

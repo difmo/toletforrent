@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -328,7 +329,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onPostPropertyTap() {
-    Navigator.pushNamed(context, '/authentication-screen');
+    if (FirebaseAuth.instance.currentUser != null) {
+      Navigator.pushNamed(context, '/add-property-screen');
+    } else {
+      Navigator.pushNamed(context, '/authentication-screen');
+    }
   }
 
   void _onBottomNavTap(int index) {

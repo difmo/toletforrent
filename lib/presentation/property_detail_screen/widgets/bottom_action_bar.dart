@@ -4,13 +4,13 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class BottomActionBar extends StatelessWidget {
-  final VoidCallback onScheduleVisit;
-  final VoidCallback onContactOwner;
+  final VoidCallback? onScheduleVisit;
+  final VoidCallback? onContactOwner;
 
   const BottomActionBar({
     super.key,
-    required this.onScheduleVisit,
-    required this.onContactOwner,
+   this.onScheduleVisit,
+    this.onContactOwner,
   });
 
   @override

@@ -67,20 +67,19 @@ class AmenitiesSelectionWidget extends StatelessWidget {
           ),
         ),
         SizedBox(height: 3.h),
-
-        // Amenities grid
+        //Amenities grid
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 100.w > 600 ? 4 : 2,
-            childAspectRatio: 2.5,
+            childAspectRatio:1/1,
             crossAxisSpacing: 3.w,
             mainAxisSpacing: 2.h,
           ),
           itemCount: availableAmenities.length,
           itemBuilder: (context, index) {
-            final amenity = availableAmenities[index];
+            final amenity = availableAmenities[index]; 
             final amenityName = amenity['name'] as String;
             final amenityIcon = amenity['icon'] as String;
             final isSelected = selectedAmenities.contains(amenityName);

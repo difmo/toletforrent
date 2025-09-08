@@ -77,7 +77,7 @@ class ProfileStatsWidget extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 2.w,
             mainAxisSpacing: 2.h,
-            childAspectRatio: 2.5,
+            childAspectRatio: 3 / 2,
             children: [
               _buildStatCard(
                 icon: 'visibility',
