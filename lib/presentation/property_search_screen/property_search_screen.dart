@@ -18,7 +18,7 @@ class PropertySearchScreen extends StatefulWidget {
 
 class _PropertySearchScreenState extends State<PropertySearchScreen> {
   String _searchQuery = '';
-  RangeValues _priceRange = const RangeValues(1000, 50000);
+  RangeValues _priceRange = const RangeValues(5000, 50000);
   List<String> _selectedBHK = [];
   List<String> _selectedPropertyTypes = [];
   List<String> _selectedFurnishedStatus = [];

@@ -447,182 +447,182 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ------------ UI ------------
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-    body: SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _refreshData,
-        // ONE scrollable for the entire page
-        child: SingleChildScrollView(
-          controller: _pageScroll,
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Location Header
-              LocationHeaderWidget(
-                currentCity: _currentCity,
-                onLocationTap: _onLocationTap,
-              ),
-
-              // Search Bar
-              SearchBarWidget(
-                onTap: _onSearchTap,
-                onFilterTap: _onFilterTap,
-              ),
-
-              // Featured
-              if (!_isLoading && _featuredProperties.isNotEmpty)
-                FeaturedPropertiesCarouselWidget(
-                  featuredProperties: _featuredProperties,
-                  onPropertyTap: _onPropertyTap,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          // ONE scrollable for the entire page
+          child: SingleChildScrollView(
+            controller: _pageScroll,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Location Header
+                LocationHeaderWidget(
+                  currentCity: _currentCity,
+                  onLocationTap: _onLocationTap,
                 ),
 
-              SizedBox(height: 2.h),
-
-              // Category chips
-              CategoryChipsWidget(
-                categories: _categories,
-                selectedCategory: _selectedCategory,
-                onCategorySelected: _onCategorySelected,
-              ),
-
-              // Content (non-scrollable grid embedded in page)
-              if (_isLoading)
-                _buildLoadingStateEmbedded()
-              else
-                PropertyGridWidget(
-                  properties: _displayed,
-                  onPropertyTap: _onPropertyTap,
-                  onFavoriteTap: _onFavoriteTap,
-                  onShareTap: _onShareTap,
-                  onContactTap: _onContactTap,
-                  onLoadMore: null,       // page-level load more handles it
-                  isLoading: false,
-                  embedded: true,         // <<< make it non-scrollable inside page
+                // Search Bar
+                SearchBarWidget(
+                  onTap: _onSearchTap,
+                  onFilterTap: _onFilterTap,
                 ),
 
-              if (_isLoadingMore) ...[
-                SizedBox(height: 2.h),
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 16),
-                    child: CircularProgressIndicator(),
+                // Featured
+                if (!_isLoading && _featuredProperties.isNotEmpty)
+                  FeaturedPropertiesCarouselWidget(
+                    featuredProperties: _featuredProperties,
+                    onPropertyTap: _onPropertyTap,
                   ),
-                ),
-              ],
 
-              // spacing so last card isn't hidden behind bottom bar/FAB
-              SizedBox(height: kBottomNavigationBarHeight + 24),
-            ],
+                SizedBox(height: 2.h),
+
+                // Category chips
+                CategoryChipsWidget(
+                  categories: _categories,
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: _onCategorySelected,
+                ),
+
+                // Content (non-scrollable grid embedded in page)
+                if (_isLoading)
+                  _buildLoadingStateEmbedded()
+                else
+                  PropertyGridWidget(
+                    properties: _displayed,
+                    onPropertyTap: _onPropertyTap,
+                    onFavoriteTap: _onFavoriteTap,
+                    onShareTap: _onShareTap,
+                    onContactTap: _onContactTap,
+                    onLoadMore: null, // page-level load more handles it
+                    isLoading: false,
+                    embedded: true, // <<< make it non-scrollable inside page
+                  ),
+
+                if (_isLoadingMore) ...[
+                  SizedBox(height: 2.h),
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ],
+
+                // spacing so last card isn't hidden behind bottom bar/FAB
+                SizedBox(height: kBottomNavigationBarHeight + 24),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-    floatingActionButton: Container(
-      decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-        AppTheme.lightTheme.colorScheme.primary,
-        AppTheme.lightTheme.colorScheme.secondary,
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.lightTheme.colorScheme.primary,
+              AppTheme.lightTheme.colorScheme.secondary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _onPostPropertyTap,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: CustomIconWidget(
+            iconName: 'add_home',
+            color: AppTheme.lightTheme.colorScheme.onPrimary,
+            size: 20,
+          ),
+          label: Text(
+            'Post Property',
+            style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+              color: AppTheme.lightTheme.colorScheme.onPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
-      borderRadius: BorderRadius.circular(32),
-      boxShadow: [
-        BoxShadow(
-        color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
-        blurRadius: 8,
-        offset: const Offset(0, 4),
+      bottomNavigationBar: CustomBottomBar(
+        currentIndex: _currentBottomIndex,
+        onTap: _onBottomNavTap,
+        variant: BottomBarVariant.standard,
+      ),
+    );
+  }
+
+  Widget _buildLoadingStateEmbedded() {
+    return Column(
+      children: [
+        // Featured skeleton
+        Container(
+          height: 35.h,
+          margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        // Chips skeleton
+        Container(
+          height: 6.h,
+          margin: EdgeInsets.symmetric(horizontal: 4.w),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 5,
+            separatorBuilder: (context, index) => SizedBox(width: 2.w),
+            itemBuilder: (context, index) => Container(
+              width: 20.w,
+              decoration: BoxDecoration(
+                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 2.h),
+        // Grid skeleton (non-scrollable)
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 100.w > 600 ? 3 : 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 3.w,
+              mainAxisSpacing: 2.h,
+            ),
+            itemCount: 6,
+            itemBuilder: (context, index) => Container(
+              decoration: BoxDecoration(
+                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         ),
       ],
-      ),
-      child: FloatingActionButton.extended(
-      onPressed: _onPostPropertyTap,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      icon: CustomIconWidget(
-        iconName: 'add_home',
-        color: AppTheme.lightTheme.colorScheme.onPrimary,
-        size: 20,
-      ),
-      label: Text(
-        'Post Property',
-        style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-        color: AppTheme.lightTheme.colorScheme.onPrimary,
-        fontWeight: FontWeight.w600,
-        ),
-      ),
-      ),
-    ),
-    bottomNavigationBar: CustomBottomBar(
-      currentIndex: _currentBottomIndex,
-      onTap: _onBottomNavTap,
-      variant: BottomBarVariant.standard,
-    ),
-  );
-}
-
-Widget _buildLoadingStateEmbedded() {
-  return Column(
-    children: [
-      // Featured skeleton
-      Container(
-        height: 35.h,
-        margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-        decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      // Chips skeleton
-      Container(
-        height: 6.h,
-        margin: EdgeInsets.symmetric(horizontal: 4.w),
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: 5,
-          separatorBuilder: (context, index) => SizedBox(width: 2.w),
-          itemBuilder: (context, index) => Container(
-            width: 20.w,
-            decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
-      ),
-      SizedBox(height: 2.h),
-      // Grid skeleton (non-scrollable)
-      Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 100.w > 600 ? 3 : 2,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 3.w,
-            mainAxisSpacing: 2.h,
-          ),
-          itemCount: 6,
-          itemBuilder: (context, index) => Container(
-            decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
-}
+    );
+  }
 
   Widget _buildLoadingState() {
     return Column(
@@ -680,7 +680,7 @@ Widget _buildLoadingStateEmbedded() {
     );
   }
 
-  Widget _buildLocationBottomSheet(){
+  Widget _buildLocationBottomSheet() {
     final cities = [
       'Mumbai, Maharashtra',
       'Delhi, NCR',
