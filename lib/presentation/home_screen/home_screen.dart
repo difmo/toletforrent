@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -17,150 +21,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  final ScrollController _scrollController = ScrollController();
-  final RefreshIndicator _refreshIndicatorKey = RefreshIndicator(
-    onRefresh: () async {},
-    child: const SizedBox(),
-  );
-
+  // UI state
   String _currentCity = 'Mumbai, Maharashtra';
   String _selectedCategory = 'All';
   bool _isLoading = false;
   bool _isLoadingMore = false;
   int _currentBottomIndex = 0;
 
-  // Mock data for featured properties
-  final List<Map<String, dynamic>> _featuredProperties = [
-    {
-      "id": 1,
-      "price": "₹25,000/month",
-      "location": "Bandra West, Mumbai",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "area": "850",
-      "image":
-          "https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": false,
-      "availability": "Available"
-    },
-    {
-      "id": 2,
-      "price": "₹45,000/month",
-      "location": "Powai, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Villa",
-      "area": "1200",
-      "image":
-          "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available"
-    },
-    {
-      "id": 3,
-      "price": "₹18,000/month",
-      "location": "Andheri East, Mumbai",
-      "bhk": "1 BHK",
-      "type": "Studio",
-      "area": "450",
-      "image":
-          "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": false,
-      "isFavorite": false,
-      "availability": "Available"
-    },
-  ];
+  // Data
+  final _db = FirebaseFirestore.instance;
+  final int _pageSize = 10;
 
-  // Mock data for property grid
-  List<Map<String, dynamic>> _properties = [
-    {
-      "id": 4,
-      "price": "₹22,000/month",
-      "location": "Malad West, Mumbai",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "area": "750",
-      "image":
-          "https://images.pexels.com/photos/1571453/pexels-photo-1571453.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": false,
-      "availability": "Available",
-      "distance": "2.5 km"
-    },
-    {
-      "id": 5,
-      "price": "₹35,000/month",
-      "location": "Juhu, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Apartment",
-      "area": "1100",
-      "image":
-          "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "4.2 km"
-    },
-    {
-      "id": 6,
-      "price": "₹15,000/month",
-      "location": "Goregaon West, Mumbai",
-      "bhk": "1 BHK",
-      "type": "Studio",
-      "area": "400",
-      "image":
-          "https://images.pexels.com/photos/1571471/pexels-photo-1571471.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": false,
-      "isFavorite": false,
-      "availability": "Available",
-      "distance": "3.8 km"
-    },
-    {
-      "id": 7,
-      "price": "₹28,000/month",
-      "location": "Kandivali East, Mumbai",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "area": "800",
-      "image":
-          "https://images.pexels.com/photos/1571472/pexels-photo-1571472.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": false,
-      "availability": "Occupied",
-      "distance": "5.1 km"
-    },
-    {
-      "id": 8,
-      "price": "₹52,000/month",
-      "location": "Worli, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Penthouse",
-      "area": "1500",
-      "image":
-          "https://images.pexels.com/photos/1571473/pexels-photo-1571473.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "6.3 km"
-    },
-    {
-      "id": 9,
-      "price": "₹19,500/month",
-      "location": "Borivali West, Mumbai",
-      "bhk": "1 BHK",
-      "type": "Apartment",
-      "area": "500",
-      "image":
-          "https://images.pexels.com/photos/1571474/pexels-photo-1571474.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": false,
-      "isFavorite": false,
-      "availability": "Available",
-      "distance": "8.7 km"
-    },
-  ];
+  List<Map<String, dynamic>> _featuredProperties = [];
+  List<Map<String, dynamic>> _properties = []; // raw page data
+  List<Map<String, dynamic>> _displayed = []; // category-filtered
+  DocumentSnapshot? _lastDoc;
+  bool _hasMore = true;
 
-  final List<String> _categories = [
+  // Favorites
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _favSub;
+  Set<String> _favoriteIds = {};
+
+  final List<String> _categories = const [
     'All',
     '1 BHK',
     '2 BHK',
@@ -170,87 +52,262 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     'Studio',
     'Villa'
   ];
+  final ScrollController _pageScroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    _listenFavorites();
+    // infinite scroll on the single page
+    _pageScroll.addListener(() {
+      final pos = _pageScroll.position;
+      if (pos.pixels >= pos.maxScrollExtent - 300) {
+        if (_hasMore && !_isLoadingMore) {
+          _loadMore();
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _favSub?.cancel();
+    _pageScroll.dispose(); // <-- dispose
+    super.dispose();
     super.dispose();
   }
 
+  // ------------ Firestore fetchers ------------
+
   Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _fetchFeatured(),
+        _fetchPage(reset: true),
+      ]);
+      _applyCategory();
+    } catch (_) {
+      // Optionally toast/log
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  Future<void> _refreshData() async {
-    // Simulate refresh
-    await Future.delayed(const Duration(milliseconds: 1000));
+  Future<void> _fetchFeatured() async {
+    // Try multiple strategies until one returns docs.
+    final col = _db.collection('properties');
 
-    setState(() {
-      // Refresh data
-    });
-  }
-
-  Future<void> _loadMoreProperties() async {
-    if (_isLoadingMore) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    // Simulate loading more properties
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    final moreProperties = [
-      {
-        "id": _properties.length + 1,
-        "price": "₹31,000/month",
-        "location": "Thane West, Mumbai",
-        "bhk": "2 BHK",
-        "type": "Apartment",
-        "area": "900",
-        "image":
-            "https://images.pexels.com/photos/1571475/pexels-photo-1571475.jpeg?auto=compress&cs=tinysrgb&w=800",
-        "isVerified": true,
-        "isFavorite": false,
-        "availability": "Available",
-        "distance": "12.4 km"
-      },
-      {
-        "id": _properties.length + 2,
-        "price": "₹24,500/month",
-        "location": "Navi Mumbai",
-        "bhk": "2 BHK",
-        "type": "Apartment",
-        "area": "750",
-        "image":
-            "https://images.pexels.com/photos/1571476/pexels-photo-1571476.jpeg?auto=compress&cs=tinysrgb&w=800",
-        "isVerified": false,
-        "isFavorite": false,
-        "availability": "Available",
-        "distance": "15.2 km"
-      },
+    final queries = <Future<QuerySnapshot<Map<String, dynamic>>>>[
+      // 1) explicit featured + recent
+      col
+          .where('isFeatured', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(6)
+          .get(),
+      // 2) just recent by createdAt
+      col.orderBy('createdAt', descending: true).limit(6).get(),
+      // 3) recent by updatedAt (if you have it)
+      col.orderBy('updatedAt', descending: true).limit(6).get(),
+      // 4) by rent (any field you’re sure exists)
+      col.orderBy('rent', descending: true).limit(6).get(),
+      // 5) no order – just give me something
+      col.limit(6).get(),
     ];
 
-    setState(() {
-      _properties.addAll(moreProperties);
-      _isLoadingMore = false;
+    QuerySnapshot<Map<String, dynamic>>? snap;
+
+    for (var i = 0; i < queries.length; i++) {
+      try {
+        final s = await queries[i];
+        if (s.docs.isNotEmpty) {
+          snap = s;
+          debugPrint(
+              '[Home] _fetchFeatured used strategy #$i with ${s.docs.length} docs');
+          break;
+        }
+      } catch (e) {
+        // ignore and try next
+        debugPrint('[Home] _fetchFeatured strategy #$i failed: $e');
+      }
+    }
+
+    _featuredProperties = (snap?.docs ?? []).map(_mapDocToCard).toList();
+  }
+
+  Future<void> _fetchPage({bool reset = false}) async {
+    if (_isLoadingMore) return;
+
+    if (reset) {
+      _lastDoc = null;
+      _hasMore = true;
+      _properties.clear();
+    }
+    if (!_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+
+    final col = _db.collection('properties');
+
+    // Build candidate queries (we’ll pick the first that returns docs).
+    List<Query<Map<String, dynamic>>> candidates = [
+      col.orderBy('createdAt', descending: true),
+      col.orderBy('updatedAt', descending: true),
+      col.orderBy('rent', descending: true),
+      col, // no order
+    ];
+
+    // Apply paging cursor and limit to each candidate
+    List<Future<QuerySnapshot<Map<String, dynamic>>>> attempts =
+        candidates.map((q) {
+      var qq = q.limit(_pageSize);
+      if (_lastDoc != null) {
+        try {
+          // startAfterDocument only works if the orderBy field is consistent,
+          // so this may throw for the "no order" candidate – that's fine.
+          qq = qq.startAfterDocument(_lastDoc!);
+        } catch (_) {}
+      }
+      return qq.get();
+    }).toList();
+
+    QuerySnapshot<Map<String, dynamic>>? snap;
+
+    for (var i = 0; i < attempts.length; i++) {
+      try {
+        final s = await attempts[i];
+        if (s.docs.isNotEmpty) {
+          snap = s;
+          debugPrint(
+              '[Home] _fetchPage used strategy #$i; got ${s.docs.length}');
+          break;
+        }
+      } catch (e) {
+        debugPrint('[Home] _fetchPage strategy #$i failed: $e');
+      }
+    }
+
+    if (snap != null && snap.docs.isNotEmpty) {
+      _lastDoc = snap.docs.last;
+      _properties.addAll(snap.docs.map(_mapDocToCard));
+      if (snap.docs.length < _pageSize) _hasMore = false;
+    } else {
+      // no docs from any strategy -> no more results
+      _hasMore = false;
+    }
+
+    _applyCategory();
+    if (mounted) setState(() => _isLoadingMore = false);
+  }
+  // ------------ Favorites sync ------------
+
+  void _listenFavorites() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _favSub = _db
+        .collection('toletforrent_users')
+        .doc(uid)
+        .collection('favorites')
+        .snapshots()
+        .listen((qs) {
+      _favoriteIds = qs.docs.map((d) => d.id).toSet();
+      // re-mark items
+      _featuredProperties = _featuredProperties
+          .map((e) => {...e, 'isFavorite': _favoriteIds.contains(e['id'])})
+          .toList();
+      _properties = _properties
+          .map((e) => {...e, 'isFavorite': _favoriteIds.contains(e['id'])})
+          .toList();
+      _applyCategory();
+      if (mounted) setState(() {});
     });
   }
+
+  // ------------ Mapping helpers ------------
+
+  Map<String, dynamic> _mapDocToCard(
+      QueryDocumentSnapshot<Map<String, dynamic>> d) {
+    final data = d.data();
+    final images = (data['images'] is List)
+        ? (data['images'] as List)
+            .where((e) => e != null)
+            .map((e) => e.toString())
+            .toList()
+        : <String>[];
+    final imageUrl =
+        (data['primaryImageUrl']?.toString().trim().isNotEmpty ?? false)
+            ? data['primaryImageUrl'].toString()
+            : (images.isNotEmpty ? images.first : '');
+
+    final rent = (data['rent'] is num) ? (data['rent'] as num).toInt() : 0;
+    final price = rent > 0 ? '₹$rent/month' : '—';
+
+    final location =
+        (data['locationText']?.toString().trim().isNotEmpty ?? false)
+            ? data['locationText'].toString()
+            : (data['address']?.toString() ?? '—');
+
+    final bhk = data['bhk']?.toString() ?? '';
+    final type = data['type']?.toString() ?? '';
+    final isVerified = (data['isVerified'] == true);
+
+    final ts = data['availabilityDate'];
+    String availability = 'Available';
+    if (ts is Timestamp) {
+      final dt = ts.toDate();
+      if (dt.isAfter(DateTime.now())) {
+        availability =
+            'From ${dt.day.toString().padLeft(2, '0')} ${_month3(dt.month)}';
+      }
+    }
+
+    final id = d.id;
+    final isFav = _favoriteIds.contains(id);
+
+    return {
+      "id": id,
+      "price": price,
+      "location": location,
+      "bhk": bhk.isNotEmpty ? bhk : '—',
+      "type": type.isNotEmpty ? type : '—',
+      "area": (data['area']?.toString() ?? ''),
+      "image":
+          imageUrl, // CustomImageWidget should handle empty -> placeholder gracefully
+      "isVerified": isVerified,
+      "isFavorite": isFav,
+      "availability": availability,
+      // optional fields your widgets may ignore if absent:
+      "distance": "", // compute later if you add geolocation
+    };
+  }
+
+  String _month3(int m) {
+    const mm = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return (m >= 1 && m <= 12) ? mm[m - 1] : '';
+  }
+
+  // ------------ UI actions ------------
+
+  Future<void> _refreshData() async {
+    await _fetchFeatured();
+    await _fetchPage(reset: true);
+  }
+
+  Future<void> _loadMore() => _fetchPage(reset: false);
 
   void _onLocationTap() {
     showModalBottomSheet(
@@ -270,52 +327,101 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onCategorySelected(String category) {
-    setState(() {
-      _selectedCategory = category;
-    });
-
-    // Filter properties based on category
-    _filterPropertiesByCategory(category);
+    setState(() => _selectedCategory = category);
+    _applyCategory();
   }
 
-  void _filterPropertiesByCategory(String category) {
-    // Implement filtering logic here
-    // For now, just showing a snackbar
-    if (category != 'All') {
+  void _applyCategory() {
+    List<Map<String, dynamic>> src = List.from(_properties);
+    switch (_selectedCategory) {
+      case '1 BHK':
+        src = src.where((p) => (p['bhk'] as String).startsWith('1')).toList();
+        break;
+      case '2 BHK':
+        src = src.where((p) => (p['bhk'] as String).startsWith('2')).toList();
+        break;
+      case '3 BHK+':
+        src = src.where((p) {
+          final s = (p['bhk'] as String).trim().toLowerCase();
+          return s.startsWith('3') || s.startsWith('4') || s.contains('4+');
+        }).toList();
+        break;
+      case 'Furnished':
+        // If you have furnished info, map & check here; otherwise skip
+        break;
+      case 'Unfurnished':
+        break;
+      case 'Studio':
+        src = src
+            .where(
+                (p) => (p['type'] as String).toLowerCase().contains('studio'))
+            .toList();
+        break;
+      case 'Villa':
+        src = src
+            .where((p) => (p['type'] as String).toLowerCase().contains('villa'))
+            .toList();
+        break;
+      default:
+        // 'All'
+        break;
+    }
+    _displayed = src
+        .map((e) => {...e, 'isFavorite': _favoriteIds.contains(e['id'])})
+        .toList();
+    if (mounted) setState(() {});
+  }
+
+  void _onPropertyTap(Map<String, dynamic> property) {
+    Navigator.pushNamed(context, '/property-detail-screen',
+        arguments: {'propertyId': property['id']});
+  }
+
+  Future<void> _onFavoriteTap(Map<String, dynamic> property) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Filtering by $category'),
-          duration: const Duration(seconds: 1),
-        ),
+        const SnackBar(content: Text('Sign in to save favorites')),
+      );
+      return;
+    }
+    final id = property['id'] as String;
+    final favRef = _db
+        .collection('toletforrent_users')
+        .doc(uid)
+        .collection('favorites')
+        .doc(id);
+    final isFav = _favoriteIds.contains(id);
+
+    try {
+      if (isFav) {
+        await favRef.delete();
+        _favoriteIds.remove(id);
+      } else {
+        await favRef.set({
+          'addedAt': FieldValue.serverTimestamp(),
+          'propertyId': id,
+        });
+        _favoriteIds.add(id);
+      }
+      // update local lists for instant UI
+      _featuredProperties = _featuredProperties
+          .map((e) => e['id'] == id ? {...e, 'isFavorite': !isFav} : e)
+          .toList();
+      _properties = _properties
+          .map((e) => e['id'] == id ? {...e, 'isFavorite': !isFav} : e)
+          .toList();
+      _applyCategory();
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update favorite')),
       );
     }
   }
 
-  void _onPropertyTap(Map<String, dynamic> property) {
-    Navigator.pushNamed(context, '/property-detail-screen');
-  }
-
-  void _onFavoriteTap(Map<String, dynamic> property) {
-    setState(() {
-      property['isFavorite'] = !(property['isFavorite'] ?? false);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(property['isFavorite'] == true
-            ? 'Added to favorites'
-            : 'Removed from favorites'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
   void _onShareTap(Map<String, dynamic> property) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Property link copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('Property link copied to clipboard')),
     );
   }
 
@@ -328,15 +434,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onPostPropertyTap() {
-    Navigator.pushNamed(context, '/authentication-screen');
+    if (FirebaseAuth.instance.currentUser != null) {
+      Navigator.pushNamed(context, '/add-property-screen');
+    } else {
+      Navigator.pushNamed(context, '/authentication-screen');
+    }
   }
 
   void _onBottomNavTap(int index) {
-    setState(() {
-      _currentBottomIndex = index;
-    });
+    setState(() => _currentBottomIndex = index);
+    // Navigate if you have routes per tab
   }
 
+  // ------------ UI ------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -344,66 +454,107 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshData,
-          child: Column(
-            children: [
-              // Location Header
-              LocationHeaderWidget(
-                currentCity: _currentCity,
-                onLocationTap: _onLocationTap,
-              ),
-
-              // Search Bar
-              SearchBarWidget(
-                onTap: _onSearchTap,
-                onFilterTap: _onFilterTap,
-              ),
-
-              // Featured Properties Carousel
-              if (!_isLoading && _featuredProperties.isNotEmpty)
-                FeaturedPropertiesCarouselWidget(
-                  featuredProperties: _featuredProperties,
-                  onPropertyTap: _onPropertyTap,
+          // ONE scrollable for the entire page
+          child: SingleChildScrollView(
+            controller: _pageScroll,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Location Header
+                LocationHeaderWidget(
+                  currentCity: _currentCity,
+                  onLocationTap: _onLocationTap,
                 ),
 
-              SizedBox(height: 2.h),
+                // Search Bar
+                SearchBarWidget(
+                  onTap: _onSearchTap,
+                  onFilterTap: _onFilterTap,
+                ),
 
-              // Category Chips
-              CategoryChipsWidget(
-                categories: _categories,
-                selectedCategory: _selectedCategory,
-                onCategorySelected: _onCategorySelected,
-              ),
+                // Featured
+                if (!_isLoading && _featuredProperties.isNotEmpty)
+                  FeaturedPropertiesCarouselWidget(
+                    featuredProperties: _featuredProperties,
+                    onPropertyTap: _onPropertyTap,
+                  ),
 
-              // Property Grid
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : PropertyGridWidget(
-                        properties: _properties,
-                        onPropertyTap: _onPropertyTap,
-                        onFavoriteTap: _onFavoriteTap,
-                        onShareTap: _onShareTap,
-                        onContactTap: _onContactTap,
-                        onLoadMore: _loadMoreProperties,
-                        isLoading: _isLoadingMore,
-                      ),
-              ),
-            ],
+                SizedBox(height: 2.h),
+
+                // Category chips
+                CategoryChipsWidget(
+                  categories: _categories,
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: _onCategorySelected,
+                ),
+
+                // Content (non-scrollable grid embedded in page)
+                if (_isLoading)
+                  _buildLoadingStateEmbedded()
+                else
+                  PropertyGridWidget(
+                    properties: _displayed,
+                    onPropertyTap: _onPropertyTap,
+                    onFavoriteTap: _onFavoriteTap,
+                    onShareTap: _onShareTap,
+                    onContactTap: _onContactTap,
+                    onLoadMore: null, // page-level load more handles it
+                    isLoading: false,
+                    embedded: true, // <<< make it non-scrollable inside page
+                  ),
+
+                if (_isLoadingMore) ...[
+                  SizedBox(height: 2.h),
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ],
+
+                // spacing so last card isn't hidden behind bottom bar/FAB
+                SizedBox(height: kBottomNavigationBarHeight + 24),
+              ],
+            ),
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _onPostPropertyTap,
-        icon: CustomIconWidget(
-          iconName: 'add_home',
-          color: AppTheme.lightTheme.colorScheme.onPrimary,
-          size: 20,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.lightTheme.colorScheme.primary,
+              AppTheme.lightTheme.colorScheme.secondary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        label: Text(
-          'Post Property',
-          style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+        child: FloatingActionButton.extended(
+          onPressed: _onPostPropertyTap,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: CustomIconWidget(
+            iconName: 'add_home',
             color: AppTheme.lightTheme.colorScheme.onPrimary,
-            fontWeight: FontWeight.w600,
+            size: 20,
+          ),
+          label: Text(
+            'Post Property',
+            style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+              color: AppTheme.lightTheme.colorScheme.onPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -415,10 +566,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingStateEmbedded() {
     return Column(
       children: [
-        // Featured properties skeleton
+        // Featured skeleton
         Container(
           height: 35.h,
           margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
@@ -428,7 +579,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
+        // Chips skeleton
+        Container(
+          height: 6.h,
+          margin: EdgeInsets.symmetric(horizontal: 4.w),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 5,
+            separatorBuilder: (context, index) => SizedBox(width: 2.w),
+            itemBuilder: (context, index) => Container(
+              width: 20.w,
+              decoration: BoxDecoration(
+                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 2.h),
+        // Grid skeleton (non-scrollable)
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 100.w > 600 ? 3 : 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 3.w,
+              mainAxisSpacing: 2.h,
+            ),
+            itemCount: 6,
+            itemBuilder: (context, index) => Container(
+              decoration: BoxDecoration(
+                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildLoadingState() {
+    return Column(
+      children: [
+        // Featured skeleton
+        Container(
+          height: 35.h,
+          margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
         // Category chips skeleton
         Container(
           height: 6.h,
@@ -447,10 +655,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
-
         SizedBox(height: 2.h),
-
-        // Property grid skeleton
+        // Grid skeleton
         Expanded(
           child: GridView.builder(
             padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -566,6 +772,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     setState(() {
                       _currentCity = city;
                     });
+                    // Optional: requery Firestore with a city filter if you maintain such a field
                     Navigator.pop(context);
                   },
                 );
@@ -607,7 +814,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 SizedBox(height: 1.h),
                 Text(
-                  property['location'] as String,
+                  (property['location'] as String?) ?? '',
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.lightTheme.colorScheme.onSurface
                         .withValues(alpha: 0.7),

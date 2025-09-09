@@ -12,6 +12,11 @@ class PropertyGridWidget extends StatefulWidget {
   final VoidCallback? onLoadMore;
   final bool isLoading;
 
+  /// When true, this widget renders as a **non-scrollable section**
+  /// (to be placed inside a page-level SingleChildScrollView).
+  /// When false, it scrolls by itself and can trigger onLoadMore.
+  final bool embedded;
+
   const PropertyGridWidget({
     super.key,
     required this.properties,
@@ -21,6 +26,7 @@ class PropertyGridWidget extends StatefulWidget {
     this.onContactTap,
     this.onLoadMore,
     this.isLoading = false,
+    this.embedded = false,
   });
 
   @override
@@ -30,10 +36,27 @@ class PropertyGridWidget extends StatefulWidget {
 class _PropertyGridWidgetState extends State<PropertyGridWidget> {
   final ScrollController _scrollController = ScrollController();
 
+  bool get _canSelfScroll => !widget.embedded;
+  bool get _canLoadMore => _canSelfScroll && !widget.isLoading && widget.onLoadMore != null;
+
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    if (_canSelfScroll) {
+      _scrollController.addListener(_onScroll);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PropertyGridWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If embedded flag changes, attach/detach listener appropriately
+    if (oldWidget.embedded != widget.embedded) {
+      _scrollController.removeListener(_onScroll);
+      if (_canSelfScroll) {
+        _scrollController.addListener(_onScroll);
+      }
+    }
   }
 
   @override
@@ -44,9 +67,10 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      widget.onLoadMore?.call();
+    if (!_canLoadMore) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      widget.onLoadMore!.call();
     }
   }
 
@@ -56,49 +80,62 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
       return _buildEmptyState();
     }
 
+    final header = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      child: Text(
+        'Properties Near You',
+        style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+
+    final grid = GridView.builder(
+      controller: _canSelfScroll ? _scrollController : null,
+      shrinkWrap: widget.embedded, // key for embedding
+      physics: widget.embedded
+          ? const NeverScrollableScrollPhysics()
+          : const BouncingScrollPhysics(),
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _getCrossAxisCount(),
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 3.w,
+        mainAxisSpacing: 2.h,
+      ),
+      itemCount: widget.properties.length + (widget.isLoading ? 4 : 0),
+      itemBuilder: (context, index) {
+        if (index >= widget.properties.length) return _buildSkeletonCard();
+        final property = widget.properties[index];
+        return _buildPropertyCard(property);
+      },
+    );
+
+    // IMPORTANT:
+    // - When embedded: no Expanded, since parent (page) scrolls.
+    // - When not embedded: use Expanded so this widget owns scrolling.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-          child: Text(
-            'Properties Near You',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Expanded(
-          child: GridView.builder(
-            controller: _scrollController,
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _getCrossAxisCount(),
-              childAspectRatio: 0.75,
-              crossAxisSpacing: 3.w,
-              mainAxisSpacing: 2.h,
-            ),
-            itemCount: widget.properties.length + (widget.isLoading ? 4 : 0),
-            itemBuilder: (context, index) {
-              if (index >= widget.properties.length) {
-                return _buildSkeletonCard();
-              }
-
-              final property = widget.properties[index];
-              return _buildPropertyCard(property);
-            },
-          ),
-        ),
+        header,
+        if (widget.embedded) grid else Expanded(child: grid),
       ],
     );
   }
 
-  int _getCrossAxisCount() {
-    if (100.w > 600) return 3; // Tablet
-    return 2; // Mobile
-  }
+  int _getCrossAxisCount() => (100.w > 600) ? 3 : 2;
 
   Widget _buildPropertyCard(Map<String, dynamic> property) {
+    final price = property['price'] as String? ?? '';
+    final location = property['location'] as String? ?? '';
+    final bhk = property['bhk'] as String? ?? '';
+    final type = property['type'] as String? ?? '';
+    final imageUrl = property['image'] as String? ?? '';
+    final availability = property['availability'] as String?;
+    final isVerified = property['isVerified'] == true;
+    final isFavorite = property['isFavorite'] == true;
+    final distance = property['distance']?.toString();
+
     return GestureDetector(
       onTap: () => widget.onPropertyTap?.call(property),
       onLongPress: () => _showQuickActions(property),
@@ -117,23 +154,20 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Property Image
+            // Image
             Expanded(
               flex: 3,
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                     child: CustomImageWidget(
-                      imageUrl: property['image'] as String,
+                      imageUrl: imageUrl,
                       width: double.infinity,
                       height: double.infinity,
                       fit: BoxFit.cover,
                     ),
                   ),
-
-                  // Top Row - Verification & Favorite
                   Positioned(
                     top: 1.h,
                     left: 2.w,
@@ -141,20 +175,17 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (property['isVerified'] == true)
+                        if (isVerified)
                           Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 1.5.w, vertical: 0.3.h),
+                            padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.3.h),
                             decoration: BoxDecoration(
                               color: AppTheme.lightTheme.colorScheme.secondary,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'VERIFIED',
-                              style: AppTheme.lightTheme.textTheme.labelSmall
-                                  ?.copyWith(
-                                color:
-                                    AppTheme.lightTheme.colorScheme.onSecondary,
+                              style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                                color: AppTheme.lightTheme.colorScheme.onSecondary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 8.sp,
                               ),
@@ -169,13 +200,10 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                               shape: BoxShape.circle,
                             ),
                             child: CustomIconWidget(
-                              iconName: property['isFavorite'] == true
-                                  ? 'favorite'
-                                  : 'favorite_border',
-                              color: property['isFavorite'] == true
+                              iconName: isFavorite ? 'favorite' : 'favorite_border',
+                              color: isFavorite
                                   ? Colors.red
-                                  : AppTheme.lightTheme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7),
+                                  : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
                               size: 16,
                             ),
                           ),
@@ -183,25 +211,21 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                       ],
                     ),
                   ),
-
-                  // Availability Status
-                  if (property['availability'] != null)
+                  if (availability != null && availability.isNotEmpty)
                     Positioned(
                       bottom: 1.h,
                       left: 2.w,
                       child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 2.w, vertical: 0.5.h),
+                        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                         decoration: BoxDecoration(
-                          color: property['availability'] == 'Available'
+                          color: availability == 'Available'
                               ? AppTheme.lightTheme.colorScheme.secondary
                               : AppTheme.warningLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          property['availability'] as String,
-                          style: AppTheme.lightTheme.textTheme.labelSmall
-                              ?.copyWith(
+                          availability,
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 8.sp,
@@ -213,7 +237,7 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
               ),
             ),
 
-            // Property Details
+            // Details
             Expanded(
               flex: 2,
               child: Padding(
@@ -222,9 +246,8 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      property['price'] as String,
-                      style:
-                          AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                      price,
+                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppTheme.lightTheme.colorScheme.primary,
                       ),
@@ -235,18 +258,15 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                       children: [
                         CustomIconWidget(
                           iconName: 'location_on',
-                          color: AppTheme.lightTheme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
                           size: 12,
                         ),
                         SizedBox(width: 1.w),
                         Expanded(
                           child: Text(
-                            property['location'] as String,
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onSurface
-                                  .withValues(alpha: 0.7),
+                            location,
+                            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -257,36 +277,28 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     Row(
                       children: [
                         Text(
-                          property['bhk'] as String,
-                          style: AppTheme.lightTheme.textTheme.labelSmall
-                              ?.copyWith(
+                          bhk,
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         SizedBox(width: 2.w),
-                        Container(
-                          width: 1,
-                          height: 12,
-                          color: AppTheme.lightTheme.dividerColor,
-                        ),
+                        Container(width: 1, height: 12, color: AppTheme.lightTheme.dividerColor),
                         SizedBox(width: 2.w),
                         Text(
-                          property['type'] as String,
-                          style: AppTheme.lightTheme.textTheme.labelSmall
-                              ?.copyWith(
+                          type,
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    if (property['distance'] != null) ...[
+                    if (distance != null && distance.isNotEmpty) ...[
                       SizedBox(height: 0.5.h),
                       Text(
-                        '${property['distance']} away',
-                        style:
-                            AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                        '$distance away',
+                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                          color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -314,16 +326,13 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: 3,
             child: Container(
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
+                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
             ),
           ),
@@ -338,9 +347,7 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     width: 20.w,
                     height: 2.h,
                     decoration: BoxDecoration(
-                      color: AppTheme
-                          .lightTheme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.3),
+                      color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -349,9 +356,7 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     width: 30.w,
                     height: 1.5.h,
                     decoration: BoxDecoration(
-                      color: AppTheme
-                          .lightTheme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.3),
+                      color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -360,9 +365,7 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     width: 15.w,
                     height: 1.h,
                     decoration: BoxDecoration(
-                      color: AppTheme
-                          .lightTheme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.3),
+                      color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -376,14 +379,14 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.h),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CustomIconWidget(
             iconName: 'home_work',
-            color: AppTheme.lightTheme.colorScheme.onSurface
-                .withValues(alpha: 0.4),
+            color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.4),
             size: 80,
           ),
           SizedBox(height: 3.h),
@@ -397,15 +400,13 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
           Text(
             'Try adjusting your filters or search in a different area',
             style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.6),
+              color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 3.h),
           ElevatedButton(
-            onPressed: () =>
-                Navigator.pushNamed(context, '/property-search-screen'),
+            onPressed: () => Navigator.pushNamed(context, '/property-search-screen'),
             child: const Text('Adjust Filters'),
           ),
         ],
@@ -439,17 +440,16 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
               child: Column(
                 children: [
                   Text(
-                    property['price'] as String,
+                    (property['price'] as String?) ?? '',
                     style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   SizedBox(height: 1.h),
                   Text(
-                    property['location'] as String,
+                    (property['location'] as String?) ?? '',
                     style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurface
-                          .withValues(alpha: 0.7),
+                      color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   SizedBox(height: 3.h),
@@ -457,11 +457,8 @@ class _PropertyGridWidgetState extends State<PropertyGridWidget> {
                     children: [
                       Expanded(
                         child: _buildQuickActionButton(
-                          icon: property['isFavorite'] == true
-                              ? 'favorite'
-                              : 'favorite_border',
-                          label:
-                              property['isFavorite'] == true ? 'Saved' : 'Save',
+                          icon: (property['isFavorite'] == true) ? 'favorite' : 'favorite_border',
+                          label: (property['isFavorite'] == true) ? 'Saved' : 'Save',
                           onTap: () {
                             Navigator.pop(context);
                             widget.onFavoriteTap?.call(property);

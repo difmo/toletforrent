@@ -4,13 +4,13 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class BottomActionBar extends StatelessWidget {
-  final VoidCallback onScheduleVisit;
-  final VoidCallback onContactOwner;
+  final VoidCallback? onScheduleVisit;
+  final VoidCallback? onContactOwner;
 
   const BottomActionBar({
     super.key,
-    required this.onScheduleVisit,
-    required this.onContactOwner,
+   this.onScheduleVisit,
+    this.onContactOwner,
   });
 
   @override
@@ -79,13 +79,13 @@ class BottomActionBar extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CustomIconWidget(
-                      iconName: 'person',
+                      iconName: 'payment',
                       color: AppTheme.lightTheme.colorScheme.onPrimary,
                       size: 18,
                     ),
                     SizedBox(width: 2.w),
                     Text(
-                      'Contact Owner',
+                      'Pay & Book',
                       style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
                         color: AppTheme.lightTheme.colorScheme.onPrimary,
                         fontWeight: FontWeight.w500,

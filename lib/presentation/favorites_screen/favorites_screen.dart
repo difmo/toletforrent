@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -18,185 +20,40 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen>
     with TickerProviderStateMixin {
-  final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
-  bool _isLoading = false;
-  bool _isSearching = false;
+  // UI state
   String _searchQuery = '';
   String _sortBy = 'Recently Added';
   String _priceRange = 'All';
-  int _currentBottomIndex = 2; // Favorites tab active
-
-  // Mock data for favorite properties
-  List<Map<String, dynamic>> _favoriteProperties = [
-    {
-      "id": 2,
-      "price": "₹45,000/month",
-      "location": "Powai, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Villa",
-      "area": "1200",
-      "image":
-          "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "4.2 km",
-      "dateAdded": DateTime.now().subtract(const Duration(days: 2))
-    },
-    {
-      "id": 5,
-      "price": "₹35,000/month",
-      "location": "Juhu, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Apartment",
-      "area": "1100",
-      "image":
-          "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "4.2 km",
-      "dateAdded": DateTime.now().subtract(const Duration(days: 5))
-    },
-    {
-      "id": 8,
-      "price": "₹52,000/month",
-      "location": "Worli, Mumbai",
-      "bhk": "3 BHK",
-      "type": "Penthouse",
-      "area": "1500",
-      "image":
-          "https://images.pexels.com/photos/1571473/pexels-photo-1571473.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "6.3 km",
-      "dateAdded": DateTime.now().subtract(const Duration(days: 1))
-    },
-    {
-      "id": 10,
-      "price": "₹28,000/month",
-      "location": "Bandra East, Mumbai",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "area": "900",
-      "image":
-          "https://images.pexels.com/photos/1396132/pexels-photo-1396132.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "isVerified": true,
-      "isFavorite": true,
-      "availability": "Available",
-      "distance": "3.8 km",
-      "dateAdded": DateTime.now().subtract(const Duration(days: 7))
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredProperties = [];
+  int _currentBottomIndex = 2;
+  
   final List<String> _sortOptions = [
     'Recently Added',
     'Price Low-High',
     'Price High-Low',
-    'Distance'
+    'Distance', // (optional if you store distance)
   ];
   final List<String> _priceRanges = ['All', '₹0-25k', '₹25k-50k', '₹50k+'];
 
-  @override
-  void initState() {
-    super.initState();
-    _filteredProperties = List.from(_favoriteProperties);
-    _loadInitialData();
-  }
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  CollectionReference<Map<String, dynamic>>? get _favRef => _uid == null
+      ? null
+      : FirebaseFirestore.instance
+          .collection('toletforrent_users')
+          .doc(_uid)
+          .collection('favorites');
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _refreshData() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    setState(() {
-      // Refresh favorite properties data
-    });
-  }
-
-  void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-      _isSearching = query.isNotEmpty;
-    });
-    _filterProperties();
-  }
-
-  void _onSortChanged(String sortBy) {
-    setState(() {
-      _sortBy = sortBy;
-    });
-    _sortProperties();
-  }
-
-  void _filterProperties() {
-    setState(() {
-      _filteredProperties = _favoriteProperties.where((property) {
-        final matchesSearch = _searchQuery.isEmpty ||
-            property['location']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            property['bhk']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            property['type']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
-
-        final matchesPrice = _priceRange == 'All' ||
-            _matchesPriceRange(property['price'], _priceRange);
-
-        return matchesSearch && matchesPrice;
-      }).toList();
-    });
-    _sortProperties();
-  }
-
-  void _sortProperties() {
-    setState(() {
-      switch (_sortBy) {
-        case 'Recently Added':
-          _filteredProperties
-              .sort((a, b) => b['dateAdded'].compareTo(a['dateAdded']));
-          break;
-        case 'Price Low-High':
-          _filteredProperties.sort((a, b) =>
-              _extractPrice(a['price']).compareTo(_extractPrice(b['price'])));
-          break;
-        case 'Price High-Low':
-          _filteredProperties.sort((a, b) =>
-              _extractPrice(b['price']).compareTo(_extractPrice(a['price'])));
-          break;
-        case 'Distance':
-          _filteredProperties.sort((a, b) => _extractDistance(a['distance'])
-              .compareTo(_extractDistance(b['distance'])));
-          break;
-      }
-    });
+  // ---------- Helpers ----------
+  int _extractPrice(String priceString) {
+    final numberString = priceString.replaceAll(RegExp(r'[^\d]'), '');
+    return int.tryParse(numberString) ?? 0;
   }
 
   bool _matchesPriceRange(String price, String range) {
@@ -213,82 +70,136 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     }
   }
 
-  int _extractPrice(String priceString) {
-    final numberString = priceString.replaceAll(RegExp(r'[^\d]'), '');
-    return int.tryParse(numberString) ?? 0;
-  }
-
   double _extractDistance(String distanceString) {
     final numberString = distanceString.replaceAll(RegExp(r'[^\d.]'), '');
     return double.tryParse(numberString) ?? 0.0;
   }
 
+  List<List<String>> _chunk(List<String> ids, {int size = 10}) {
+    final chunks = <List<String>>[];
+    for (var i = 0; i < ids.length; i += size) {
+      chunks.add(ids.sublist(i, i + size > ids.length ? ids.length : i + size));
+    }
+    return chunks;
+  }
+
+  // Turn Firestore property doc into the map your grid expects
+  Map<String, dynamic> _toCardMap(
+      DocumentSnapshot<Map<String, dynamic>> doc, DateTime addedAt) {
+    final d = doc.data() ?? const {};
+    final rent = d['rent'];
+    final price = (rent is num && rent > 0) ? '₹${rent.toInt()}/month' : '—';
+
+    // Pick an image safely
+    String primary = '';
+    if (d['primaryImageUrl'] is String &&
+        (d['primaryImageUrl'] as String).isNotEmpty) {
+      primary = d['primaryImageUrl'];
+    } else if (d['images'] is List && (d['images'] as List).isNotEmpty) {
+      primary = (d['images'] as List).first.toString();
+    }
+
+    return {
+      "id": doc.id,
+      "price": price,
+      "location": (d['locationText'] ?? '—').toString(),
+      "bhk": (d['bhk'] ?? '—').toString(),
+      "type": (d['type'] ?? '—').toString(),
+      "area": (d['area'] ?? '').toString(),
+      "image": primary,
+      "isVerified": (d['isVerified'] ?? false) == true,
+      "isFavorite": true,
+      "availability": (d['status'] ?? 'Available').toString(),
+      // Optional: only if you store it; otherwise provide '' so sorting skips it
+      "distance": (d['distance'] ?? '').toString(),
+      "dateAdded": addedAt,
+    };
+  }
+
+  // Fetch a batch of properties for a list of IDs (single shot)
+  Future<List<Map<String, dynamic>>> _fetchPropertiesForIds(
+    List<String> propIds,
+    Map<String, DateTime> addedAtById,
+  ) async {
+    if (propIds.isEmpty) return [];
+    final props = <Map<String, dynamic>>[];
+
+    for (final ids in _chunk(propIds, size: 10)) {
+      final qs = await FirebaseFirestore.instance
+          .collection('properties')
+          .where(FieldPath.documentId, whereIn: ids)
+          .get();
+      for (final doc in qs.docs) {
+        final addedAt = addedAtById[doc.id] ?? DateTime.now();
+        props.add(_toCardMap(doc, addedAt));
+      }
+    }
+    return props;
+  }
+
+  // ---------- Actions ----------
+  void _onSearchChanged(String query) => setState(() => _searchQuery = query);
+
+  void _onSortChanged(String sortBy) => setState(() => _sortBy = sortBy);
+
+  Future<void> _removeFromFavorites(String propertyId) async {
+    if (_favRef == null) return;
+    await _favRef!.doc(propertyId).delete();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Property removed from favorites'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              await _favRef!.doc(propertyId).set({
+                'propertyId': propertyId,
+                'addedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   void _onPropertyTap(Map<String, dynamic> property) {
-    Navigator.pushNamed(context, '/property-detail-screen',
-        arguments: property);
+    Navigator.pushNamed(
+      context,
+      '/property-detail-screen',
+      arguments: {'propertyId': property['id'] as String},
+    );
   }
 
   void _onFavoriteTap(Map<String, dynamic> property) {
-    _showRemoveDialog(property);
-  }
-
-  void _showRemoveDialog(Map<String, dynamic> property) {
+    final id = property['id'] as String;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Remove from Favorites',
-          style: AppTheme.lightTheme.textTheme.titleMedium,
-        ),
+        title: Text('Remove from Favorites',
+            style: AppTheme.lightTheme.textTheme.titleMedium),
         content: Text(
           'Are you sure you want to remove this property from your favorites?',
           style: AppTheme.lightTheme.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _removeFromFavorites(property);
-            },
-            child: const Text('Remove'),
-          ),
+              onPressed: () {
+                Navigator.pop(context);
+                _removeFromFavorites(id);
+              },
+              child: const Text('Remove')),
         ],
-      ),
-    );
-  }
-
-  void _removeFromFavorites(Map<String, dynamic> property) {
-    setState(() {
-      _favoriteProperties.removeWhere((p) => p['id'] == property['id']);
-      _filteredProperties.removeWhere((p) => p['id'] == property['id']);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Property removed from favorites'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            setState(() {
-              _favoriteProperties.add(property);
-              _filterProperties();
-            });
-          },
-        ),
       ),
     );
   }
 
   void _onShareTap(Map<String, dynamic> property) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Property link copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('Property link copied to clipboard')),
     );
   }
 
@@ -301,89 +212,177 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   void _onBottomNavTap(int index) {
-    if (index != _currentBottomIndex) {
-      setState(() {
-        _currentBottomIndex = index;
-      });
+    if (index == _currentBottomIndex) return;
+    setState(() => _currentBottomIndex = index);
 
-      final routes = [
-        '/home-screen',
-        '/property-search-screen',
-        null, // Current screen
-        '/home-screen', // Messages (temporary)
-        '/authentication-screen',
-      ];
-
-      if (routes[index] != null) {
-        Navigator.pushReplacementNamed(context, routes[index]!);
-      }
-    }
+    final routes = [
+      '/home-screen',
+      '/property-search-screen',
+      null, //current
+      '/messages-screen',
+      '/profile-screen',
+    ];
+    
+    final r = routes[index];
+    if (r != null) Navigator.pushReplacementNamed(context, r);
   }
 
   void _onStartBrowsing() {
     Navigator.pushReplacementNamed(context, '/home-screen');
   }
 
+  // ---------- Build ----------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refreshData,
-          child: Column(
-            children: [
-              // Header
-              FavoritesHeaderWidget(
-                totalCount: _favoriteProperties.length,
-              ),
+    final theme = AppTheme.lightTheme;
 
-              if (_favoriteProperties.isNotEmpty) ...[
-                // Search and Sort
-                FavoritesSearchWidget(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  onClearTap: () {
-                    _searchController.clear();
-                    _onSearchChanged('');
-                  },
-                ),
-
-                SortOptionsWidget(
-                  sortBy: _sortBy,
-                  sortOptions: _sortOptions,
-                  priceRange: _priceRange,
-                  priceRanges: _priceRanges,
-                  onSortChanged: _onSortChanged,
-                  onPriceRangeChanged: (range) {
-                    setState(() {
-                      _priceRange = range;
-                    });
-                    _filterProperties();
-                  },
-                ),
-              ],
-
-              // Content
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState()
-                    : _favoriteProperties.isEmpty
-                        ? EmptyFavoritesWidget(
-                            onStartBrowsing: _onStartBrowsing,
-                          )
-                        : _filteredProperties.isEmpty
-                            ? _buildNoResultsState()
-                            : FavoritesGridWidget(
-                                properties: _filteredProperties,
-                                onPropertyTap: _onPropertyTap,
-                                onFavoriteTap: _onFavoriteTap,
-                                onShareTap: _onShareTap,
-                                onContactTap: _onContactTap,
-                              ),
-              ),
-            ],
+    if (_uid == null || _favRef == null) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(6.w),
+            child: Text(
+              'Please sign in to view your favorites.',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
           ),
+        ),
+        bottomNavigationBar: CustomBottomBar(
+          currentIndex: _currentBottomIndex,
+          onTap: _onBottomNavTap,
+          variant: BottomBarVariant.standard,
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _favRef!
+              .orderBy('addedAt', descending: true)
+              .snapshots(), // live favorites list
+          builder: (context, favSnap) {
+            if (favSnap.connectionState == ConnectionState.waiting) {
+              return _buildLoadingSkeleton();
+            }
+            final favDocs = favSnap.data?.docs ?? const [];
+            if (favDocs.isEmpty) {
+              return Column(
+                children: [
+                  FavoritesHeaderWidget(totalCount: 0),
+                  Expanded(
+                      child: EmptyFavoritesWidget(
+                          onStartBrowsing: _onStartBrowsing)),
+                ],
+              );
+            }
+
+            // Build map of id -> addedAt
+            final addedAtById = <String, DateTime>{};
+            final ids = <String>[];
+            for (final d in favDocs) {
+              ids.add(d.id); // favorite doc id == propertyId
+              final ts = d.data()['addedAt'];
+              final when = (ts is Timestamp) ? ts.toDate() : DateTime.now();
+              addedAtById[d.id] = when;
+            }
+
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              // Single-shot fetch of all properties for these ids (re-runs whenever favs change)
+              future: _fetchPropertiesForIds(ids, addedAtById),
+              builder: (context, propSnap) {
+                final loading =
+                    propSnap.connectionState == ConnectionState.waiting;
+                final items = propSnap.data ?? <Map<String, dynamic>>[];
+
+                // Header + search/sort controls
+                final header = FavoritesHeaderWidget(totalCount: ids.length);
+                final controls = Column(
+                  children: [
+                    FavoritesSearchWidget(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      onClearTap: () {
+                        _searchController.clear();
+                        _onSearchChanged('');
+                      },
+                    ),
+                    SortOptionsWidget(
+                      sortBy: _sortBy,
+                      sortOptions: _sortOptions,
+                      priceRange: _priceRange,
+                      priceRanges: _priceRanges,
+                      onSortChanged: _onSortChanged,
+                      onPriceRangeChanged: (range) =>
+                          setState(() => _priceRange = range),
+                    ),
+                  ],
+                );
+
+                // Filter + sort locally for UI
+                List<Map<String, dynamic>> filtered = items.where((p) {
+                  final q = _searchQuery.toLowerCase();
+                  final matchesSearch = q.isEmpty ||
+                      (p['location'] as String).toLowerCase().contains(q) ||
+                      (p['bhk'] as String).toLowerCase().contains(q) ||
+                      (p['type'] as String).toLowerCase().contains(q);
+                  final matchesPrice =
+                      _matchesPriceRange(p['price'] as String, _priceRange);
+                  return matchesSearch && matchesPrice;
+                }).toList();
+
+                switch (_sortBy) {
+                  case 'Recently Added':
+                    filtered.sort((a, b) => (b['dateAdded'] as DateTime)
+                        .compareTo(a['dateAdded'] as DateTime));
+                    break;
+                  case 'Price Low-High':
+                    filtered.sort((a, b) => _extractPrice(a['price'] as String)
+                        .compareTo(_extractPrice(b['price'] as String)));
+                    break;
+                  case 'Price High-Low':
+                    filtered.sort((a, b) => _extractPrice(b['price'] as String)
+                        .compareTo(_extractPrice(a['price'] as String)));
+                    break;
+                  case 'Distance':
+                    filtered.sort((a, b) =>
+                        _extractDistance((a['distance'] as String? ?? ''))
+                            .compareTo(_extractDistance(
+                                (b['distance'] as String? ?? ''))));
+                    break;
+                }
+
+                return  
+                RefreshIndicator(
+                  onRefresh: () async {
+
+                  }, // Firestore is realtime
+                  child: Column(
+                    children: [
+                      header,
+                      controls,
+                      Expanded(
+                        child: loading
+                            ? _buildLoadingState()
+                            : filtered.isEmpty
+                                ? _buildNoResultsState()
+                                : FavoritesGridWidget(
+                                    properties: filtered,
+                                    onPropertyTap: _onPropertyTap,
+                                    onFavoriteTap: _onFavoriteTap,
+                                    onShareTap: _onShareTap,
+                                    onContactTap: _onContactTap,
+                                  ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
       bottomNavigationBar: CustomBottomBar(
@@ -391,6 +390,16 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         onTap: _onBottomNavTap,
         variant: BottomBarVariant.standard,
       ),
+    );
+  }
+
+  // ---------- UI bits ----------
+  Widget _buildLoadingSkeleton() {
+    return Column(
+      children: [
+        FavoritesHeaderWidget(totalCount: 0),
+        Expanded(child: _buildLoadingState()),
+      ],
     );
   }
 
@@ -448,7 +457,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 _searchController.clear();
                 _searchQuery = '';
                 _priceRange = 'All';
-                _filterProperties();
               });
             },
             child: const Text('Clear filters'),

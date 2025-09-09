@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -17,213 +18,264 @@ class PropertySearchScreen extends StatefulWidget {
 
 class _PropertySearchScreenState extends State<PropertySearchScreen> {
   String _searchQuery = '';
-  RangeValues _priceRange = const RangeValues(10000, 50000);
+  RangeValues _priceRange = const RangeValues(5000, 50000);
   List<String> _selectedBHK = [];
   List<String> _selectedPropertyTypes = [];
   List<String> _selectedFurnishedStatus = [];
   bool _isGridView = false;
   bool _isMapView = false;
   String _sortBy = 'Relevance';
-  int _resultCount = 0;
+  int _resultCount = 0; // updated from stream builder
 
-  final List<Map<String, dynamic>> _mockProperties = [
-    {
-      "id": 1,
-      "title": "Spacious 2BHK Apartment in Koramangala",
-      "price": "₹25,000/month",
-      "location": "Koramangala 5th Block, Bangalore",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "furnished": "Fully Furnished",
-      "image":
-          "https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": true,
-      "ownerName": "Rajesh Kumar",
-      "ownerPhone": "+91 9876543210",
-      "area": "1200 sq ft",
-      "availableFrom": "Immediately",
-      "deposit": "₹50,000",
-      "amenities": ["Parking", "Gym", "Swimming Pool", "Security"],
-      "description":
-          "Beautiful 2BHK apartment with modern amenities in the heart of Koramangala. Close to metro station and IT parks.",
-      "rating": 4.5,
-      "reviews": 23,
-    },
-    {
-      "id": 2,
-      "title": "Modern 3BHK House in Whitefield",
-      "price": "₹35,000/month",
-      "location": "Whitefield, Bangalore",
-      "bhk": "3 BHK",
-      "type": "House",
-      "furnished": "Semi Furnished",
-      "image":
-          "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": true,
-      "ownerName": "Priya Sharma",
-      "ownerPhone": "+91 9876543211",
-      "area": "1800 sq ft",
-      "availableFrom": "15th Jan 2025",
-      "deposit": "₹70,000",
-      "amenities": ["Garden", "Parking", "Power Backup", "Water Supply"],
-      "description":
-          "Spacious 3BHK independent house with garden in peaceful Whitefield locality. Perfect for families.",
-      "rating": 4.7,
-      "reviews": 18,
-    },
-    {
-      "id": 3,
-      "title": "Luxury 1BHK Studio in Electronic City",
-      "price": "₹18,000/month",
-      "location": "Electronic City Phase 1, Bangalore",
-      "bhk": "1 BHK",
-      "type": "Studio",
-      "furnished": "Fully Furnished",
-      "image":
-          "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": false,
-      "ownerName": "Amit Patel",
-      "ownerPhone": "+91 9876543212",
-      "area": "650 sq ft",
-      "availableFrom": "1st Feb 2025",
-      "deposit": "₹36,000",
-      "amenities": ["AC", "WiFi", "Laundry", "Housekeeping"],
-      "description":
-          "Modern studio apartment perfect for working professionals. Located near major IT companies.",
-      "rating": 4.2,
-      "reviews": 12,
-    },
-    {
-      "id": 4,
-      "title": "Comfortable PG for Working Professionals",
-      "price": "₹12,000/month",
-      "location": "BTM Layout, Bangalore",
-      "bhk": "1 BHK",
-      "type": "PG",
-      "furnished": "Fully Furnished",
-      "image":
-          "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": true,
-      "ownerName": "Sunita Reddy",
-      "ownerPhone": "+91 9876543213",
-      "area": "400 sq ft",
-      "availableFrom": "Immediately",
-      "deposit": "₹24,000",
-      "amenities": ["Meals", "WiFi", "Laundry", "Security"],
-      "description":
-          "Well-maintained PG accommodation with all meals included. Safe and secure environment.",
-      "rating": 4.0,
-      "reviews": 35,
-    },
-    {
-      "id": 5,
-      "title": "Premium 4BHK Villa in Sarjapur",
-      "price": "₹55,000/month",
-      "location": "Sarjapur Road, Bangalore",
-      "bhk": "4+ BHK",
-      "type": "Villa",
-      "furnished": "Unfurnished",
-      "image":
-          "https://images.pexels.com/photos/1396132/pexels-photo-1396132.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": true,
-      "ownerName": "Vikram Singh",
-      "ownerPhone": "+91 9876543214",
-      "area": "2500 sq ft",
-      "availableFrom": "1st March 2025",
-      "deposit": "₹1,10,000",
-      "amenities": [
-        "Swimming Pool",
-        "Garden",
-        "Parking",
-        "Security",
-        "Club House"
-      ],
-      "description":
-          "Luxurious 4BHK villa in gated community with world-class amenities. Perfect for large families.",
-      "rating": 4.8,
-      "reviews": 8,
-    },
-    {
-      "id": 6,
-      "title": "Cozy 2BHK Apartment in Indiranagar",
-      "price": "₹28,000/month",
-      "location": "Indiranagar, Bangalore",
-      "bhk": "2 BHK",
-      "type": "Apartment",
-      "furnished": "Semi Furnished",
-      "image":
-          "https://images.pexels.com/photos/1571453/pexels-photo-1571453.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-      "isVerified": true,
-      "ownerName": "Meera Joshi",
-      "ownerPhone": "+91 9876543215",
-      "area": "1100 sq ft",
-      "availableFrom": "20th Jan 2025",
-      "deposit": "₹56,000",
-      "amenities": ["Balcony", "Parking", "Elevator", "Security"],
-      "description":
-          "Charming 2BHK apartment in vibrant Indiranagar with easy access to restaurants and shopping.",
-      "rating": 4.3,
-      "reviews": 19,
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredProperties = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredProperties = List.from(_mockProperties);
-    _resultCount = _filteredProperties.length;
+  // ---------- helpers ----------
+  String _asString(Object? v, {String def = ''}) => v?.toString() ?? def;
+  int _asInt(Object? v, {int def = 0}) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String)
+      return int.tryParse(v.replaceAll(RegExp(r'[^\d\-]'), '')) ?? def;
+    return def;
   }
 
+  List<String> _asStringList(Object? v) => (v is List)
+      ? v.where((e) => e != null).map((e) => e.toString()).toList()
+      : const [];
+
+  /// Build a Firestore query with index-friendly filters.
+  /// Strategy:
+  /// - Always filter by numeric `rent` range (requires orderBy('rent')).
+  /// - If exactly one `type` / `bhk` / `furnished` selected, add equality (more than one → filter client-side).
+  /// - Sorting: if user picked a price sort, keep orderBy('rent'); if "Newest First" try 'createdAt'.
+  Query<Map<String, dynamic>> _buildQuery() {
+    final col = FirebaseFirestore.instance.collection('properties');
+
+    // Base with rent range
+    Query<Map<String, dynamic>> q = col
+        .where('rent', isGreaterThanOrEqualTo: _priceRange.start.round())
+        .where('rent', isLessThanOrEqualTo: _priceRange.end.round())
+        .orderBy('rent'); // needed for range
+
+    // Add single-value equality filters (safe for indexes)
+    if (_selectedPropertyTypes.length == 1) {
+      q = q.where('type', isEqualTo: _selectedPropertyTypes.first);
+    }
+    if (_selectedBHK.length == 1) {
+      q = q.where('bhk', isEqualTo: _selectedBHK.first);
+    }
+    if (_selectedFurnishedStatus.length == 1) {
+      q = q.where('furnished', isEqualTo: _selectedFurnishedStatus.first);
+    }
+
+    // If sorting by "Newest First" and you store createdAt, prefer that
+    if (_sortBy == 'Newest First') {
+      // You can swap to 'publishedAt' if that's your field
+      q = col
+          .where('rent', isGreaterThanOrEqualTo: _priceRange.start.round())
+          .where('rent', isLessThanOrEqualTo: _priceRange.end.round())
+          .orderBy('createdAt', descending: true);
+      // NOTE: if you keep the single-value filters above, you'll likely need a composite index.
+      if (_selectedPropertyTypes.length == 1) {
+        q = q.where('type', isEqualTo: _selectedPropertyTypes.first);
+      }
+      if (_selectedBHK.length == 1) {
+        q = q.where('bhk', isEqualTo: _selectedBHK.first);
+      }
+      if (_selectedFurnishedStatus.length == 1) {
+        q = q.where('furnished', isEqualTo: _selectedFurnishedStatus.first);
+      }
+    }
+
+    // You can add .limit(50) and implement pagination later if needed.
+    return q.limit(60);
+  }
+
+  /// Map a Firestore doc to the shape that SearchResultsWidget expects.
+  Map<String, dynamic> _mapDocToCard(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data() ?? {};
+    final title = _asString(d['title'], def: 'Property');
+    final rent = _asInt(d['rent'], def: 0);
+    final price = rent > 0 ? '₹$rent/month' : '—';
+    final location = _asString(d['locationText'], def: '');
+    final images = _asStringList(d['images']);
+    final primary = _asString(d['primaryImageUrl'],
+        def: images.isNotEmpty ? images.first : '');
+    final image =
+        primary.isNotEmpty ? primary : (images.isNotEmpty ? images.first : '');
+    return {
+      'id': doc.id,
+      'title': title,
+      'price': price,
+      'location': location,
+      'bhk': _asString(d['bhk'], def: ''),
+      'type': _asString(d['type'], def: ''),
+      'furnished': _asString(d['furnished'], def: ''),
+      'image': image,
+      'isVerified': (d['isVerified'] == true),
+      // optional fields the widgets handle gracefully when missing:
+      'distance': '', // if you ever compute it
+    };
+  }
+
+  /// Client-side refine after query: search text, multi-select filters, and sorting.
+  List<Map<String, dynamic>> _refineClientSide(
+    List<Map<String, dynamic>> items,
+  ) {
+    var list = List<Map<String, dynamic>>.from(items);
+
+    // search by title/location (case-insensitive "contains")
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((p) {
+        final t = _asString(p['title']).toLowerCase();
+        final loc = _asString(p['location']).toLowerCase();
+        return t.contains(q) || loc.contains(q);
+      }).toList();
+    }
+
+    // multi BHK filter (client-side if >1 selected)
+    if (_selectedBHK.isNotEmpty) {
+      list = list
+          .where((p) => _selectedBHK.contains(_asString(p['bhk'])))
+          .toList();
+    }
+    // multi Type filter
+    if (_selectedPropertyTypes.isNotEmpty) {
+      list = list
+          .where((p) => _selectedPropertyTypes.contains(_asString(p['type'])))
+          .toList();
+    }
+    // multi Furnished filter
+    if (_selectedFurnishedStatus.isNotEmpty) {
+      list = list
+          .where((p) =>
+              _selectedFurnishedStatus.contains(_asString(p['furnished'])))
+          .toList();
+    }
+
+    // sorting
+    switch (_sortBy) {
+      case 'Price: Low to High':
+        list.sort((a, b) {
+          final pa = _asInt(a['price']);
+          final pb = _asInt(b['price']);
+          return pa.compareTo(pb);
+        });
+        break;
+      case 'Price: High to Low':
+        list.sort((a, b) {
+          final pa = _asInt(a['price']);
+          final pb = _asInt(b['price']);
+          return pb.compareTo(pa);
+        });
+        break;
+      case 'Newest First':
+        // already ordered server-side if you have createdAt; if not, keep as-is
+        break;
+      case 'Distance':
+        // you can implement if you compute distance; for now leave as-is or shuffle
+        break;
+      case 'Relevance':
+      default:
+        // keep original server order
+        break;
+    }
+
+    // keep only properties within priceRange again (safety if server sort changed it)
+    list = list.where((p) {
+      final numeric = _asInt(p['price']);
+      return numeric >= _priceRange.start && numeric <= _priceRange.end;
+    }).toList();
+
+    return list;
+  }
+
+  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          SearchHeaderWidget(
-            searchQuery: _searchQuery,
-            onBackPressed: () => Navigator.pop(context),
-            onLocationPressed: _handleLocationPressed,
-            onSearchChanged: _handleSearchChanged,
-          ),
-          ActiveFiltersWidget(
-            priceRange: _priceRange,
-            selectedBHK: _selectedBHK,
-            selectedPropertyTypes: _selectedPropertyTypes,
-            selectedFurnishedStatus: _selectedFurnishedStatus,
-            onRemoveFilter: _handleRemoveFilter,
-            onClearAll: _handleClearAllFilters,
-          ),
-          FilterSectionWidget(
-            priceRange: _priceRange,
-            selectedBHK: _selectedBHK,
-            selectedPropertyTypes: _selectedPropertyTypes,
-            selectedFurnishedStatus: _selectedFurnishedStatus,
-            onPriceRangeChanged: _handlePriceRangeChanged,
-            onBHKChanged: _handleBHKChanged,
-            onPropertyTypesChanged: _handlePropertyTypesChanged,
-            onFurnishedStatusChanged: _handleFurnishedStatusChanged,
-            onMoreFiltersPressed: _handleMoreFiltersPressed,
-            onClearAllPressed: _handleClearAllFilters,
-          ),
-          Expanded(
-            child: _isMapView
-                ? MapViewWidget(
-                    properties: _filteredProperties,
-                    onPropertyTap: _handlePropertyTap,
-                  )
-                : SearchResultsWidget(
-                    properties: _filteredProperties,
+      body: Container(
+        child: Column(
+          children: [
+            SearchHeaderWidget(
+              searchQuery: _searchQuery,
+              onBackPressed: () => Navigator.pop(context),
+              onLocationPressed: _handleLocationPressed,
+              onSearchChanged: _handleSearchChanged,
+            ),
+            ActiveFiltersWidget(
+              priceRange: _priceRange,
+              selectedBHK: _selectedBHK,
+              selectedPropertyTypes: _selectedPropertyTypes,
+              selectedFurnishedStatus: _selectedFurnishedStatus,
+              onRemoveFilter: _handleRemoveFilter,
+              onClearAll: _handleClearAllFilters,
+            ),
+            FilterSectionWidget(
+              priceRange: _priceRange,
+              selectedBHK: _selectedBHK,
+              selectedPropertyTypes: _selectedPropertyTypes,
+              selectedFurnishedStatus: _selectedFurnishedStatus,
+              onPriceRangeChanged: _handlePriceRangeChanged,
+              onBHKChanged: _handleBHKChanged,
+              onPropertyTypesChanged: _handlePropertyTypesChanged,
+              onFurnishedStatusChanged: _handleFurnishedStatusChanged,
+              onMoreFiltersPressed: _handleMoreFiltersPressed,
+              onClearAllPressed: _handleClearAllFilters,
+            ),
+        
+            // RESULTS (live from Firestore)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _buildQuery().snapshots(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snap.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(6.w),
+                        child: Text(
+                          'Failed to load properties.\n${snap.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+        
+                  final docs = snap.data?.docs ?? const [];
+                  final items = docs.map(_mapDocToCard).toList();
+                  final refined = _refineClientSide(items);
+        
+                  // update count shown in bottom bar
+                  if (_resultCount != refined.length) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _resultCount = refined.length);
+                    });
+                  }
+        
+                  if (_isMapView) {
+                    return MapViewWidget(
+                      properties: refined,
+                      onPropertyTap: _handlePropertyTap,
+                    );
+                  }
+        
+                  return SearchResultsWidget(
+                    properties: refined,
                     isGridView: _isGridView,
                     sortBy: _sortBy,
                     onToggleView: _handleToggleView,
                     onSortChanged: _handleSortChanged,
                     onPropertyTap: _handlePropertyTap,
-                  ),
-          ),
-        ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomActionBar(),
       floatingActionButton: _buildMapToggleFAB(),
@@ -231,6 +283,7 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
     );
   }
 
+  // ---------- bottom bar & FAB ----------
   Widget _buildBottomActionBar() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
@@ -247,13 +300,12 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
       child: SafeArea(
         child: ElevatedButton(
           onPressed: _handleApplyFilters,
-          child: Text('Show $_resultCount Properties'),
           style: ElevatedButton.styleFrom(
             padding: EdgeInsets.symmetric(vertical: 2.h),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
+          child: Text('Show $_resultCount Properties'),
         ),
       ),
     );
@@ -273,11 +325,10 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
     );
   }
 
+  // ---------- handlers (unchanged API) ----------
   void _handleSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-    });
-    _applyFilters();
+    setState(() => _searchQuery = query);
+    // No manual fetch; StreamBuilder reacts to state (server + client filters)
   }
 
   void _handleLocationPressed() {
@@ -287,59 +338,34 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
   }
 
   void _handlePriceRangeChanged(RangeValues range) {
-    setState(() {
-      _priceRange = range;
-    });
-    _applyFilters();
+    setState(() => _priceRange = range);
   }
 
   void _handleBHKChanged(List<String> bhkList) {
-    setState(() {
-      _selectedBHK = bhkList;
-    });
-    _applyFilters();
+    setState(() => _selectedBHK = bhkList);
   }
 
   void _handlePropertyTypesChanged(List<String> types) {
-    setState(() {
-      _selectedPropertyTypes = types;
-    });
-    _applyFilters();
+    setState(() => _selectedPropertyTypes = types);
   }
 
   void _handleFurnishedStatusChanged(List<String> status) {
-    setState(() {
-      _selectedFurnishedStatus = status;
-    });
-    _applyFilters();
+    setState(() => _selectedFurnishedStatus = status);
   }
 
-  void _handleMoreFiltersPressed() {
-    _showAdvancedFiltersBottomSheet();
-  }
+  void _handleMoreFiltersPressed() => _showAdvancedFiltersBottomSheet();
 
   void _handleRemoveFilter(String filterKey) {
     if (filterKey == 'price') {
-      setState(() {
-        _priceRange = const RangeValues(5000, 100000);
-      });
+      _priceRange = const RangeValues(5000, 100000);
     } else if (filterKey.startsWith('bhk_')) {
-      final bhk = filterKey.substring(4);
-      setState(() {
-        _selectedBHK.remove(bhk);
-      });
+      _selectedBHK.remove(filterKey.substring(4));
     } else if (filterKey.startsWith('type_')) {
-      final type = filterKey.substring(5);
-      setState(() {
-        _selectedPropertyTypes.remove(type);
-      });
+      _selectedPropertyTypes.remove(filterKey.substring(5));
     } else if (filterKey.startsWith('furnished_')) {
-      final status = filterKey.substring(10);
-      setState(() {
-        _selectedFurnishedStatus.remove(status);
-      });
+      _selectedFurnishedStatus.remove(filterKey.substring(10));
     }
-    _applyFilters();
+    setState(() {});
   }
 
   void _handleClearAllFilters() {
@@ -350,129 +376,33 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
       _selectedFurnishedStatus.clear();
       _searchQuery = '';
     });
-    _applyFilters();
   }
 
-  void _handleToggleView() {
-    setState(() {
-      _isGridView = !_isGridView;
-    });
-  }
-
-  void _handleToggleMapView() {
-    setState(() {
-      _isMapView = !_isMapView;
-    });
-  }
+  void _handleToggleView() => setState(() => _isGridView = !_isGridView);
+  void _handleToggleMapView() => setState(() => _isMapView = !_isMapView);
 
   void _handleSortChanged(String sortBy) {
-    setState(() {
-      _sortBy = sortBy;
-    });
-    _applySorting();
+    setState(() => _sortBy = sortBy);
   }
 
   void _handlePropertyTap(Map<String, dynamic> property) {
-    Navigator.pushNamed(context, '/property-detail-screen');
+    final id = _asString(property['id']);
+    if (id.isNotEmpty) {
+      Navigator.pushNamed(context, '/property-detail-screen',
+          arguments: {'propertyId': id});
+    } else {
+      Navigator.pushNamed(context, '/property-detail-screen');
+    }
   }
 
   void _handleApplyFilters() {
-    _applyFilters();
+    // No extra work; StreamBuilder + client filters react to state.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Showing $_resultCount properties')),
     );
   }
 
-  void _applyFilters() {
-    List<Map<String, dynamic>> filtered = List.from(_mockProperties);
-
-    // Apply search query filter
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((property) {
-        final title = (property['title'] as String).toLowerCase();
-        final location = (property['location'] as String).toLowerCase();
-        final query = _searchQuery.toLowerCase();
-        return title.contains(query) || location.contains(query);
-      }).toList();
-    }
-
-    // Apply price range filter
-    filtered = filtered.where((property) {
-      final priceString = property['price'] as String;
-      final price =
-          double.tryParse(priceString.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-      return price >= _priceRange.start && price <= _priceRange.end;
-    }).toList();
-
-    // Apply BHK filter
-    if (_selectedBHK.isNotEmpty) {
-      filtered = filtered.where((property) {
-        return _selectedBHK.contains(property['bhk'] as String);
-      }).toList();
-    }
-
-    // Apply property type filter
-    if (_selectedPropertyTypes.isNotEmpty) {
-      filtered = filtered.where((property) {
-        return _selectedPropertyTypes.contains(property['type'] as String);
-      }).toList();
-    }
-
-    // Apply furnished status filter
-    if (_selectedFurnishedStatus.isNotEmpty) {
-      filtered = filtered.where((property) {
-        return _selectedFurnishedStatus
-            .contains(property['furnished'] as String);
-      }).toList();
-    }
-
-    setState(() {
-      _filteredProperties = filtered;
-      _resultCount = filtered.length;
-    });
-
-    _applySorting();
-  }
-
-  void _applySorting() {
-    switch (_sortBy) {
-      case 'Price: Low to High':
-        _filteredProperties.sort((a, b) {
-          final priceA = double.tryParse(
-                  (a['price'] as String).replaceAll(RegExp(r'[^\d]'), '')) ??
-              0;
-          final priceB = double.tryParse(
-                  (b['price'] as String).replaceAll(RegExp(r'[^\d]'), '')) ??
-              0;
-          return priceA.compareTo(priceB);
-        });
-        break;
-      case 'Price: High to Low':
-        _filteredProperties.sort((a, b) {
-          final priceA = double.tryParse(
-                  (a['price'] as String).replaceAll(RegExp(r'[^\d]'), '')) ??
-              0;
-          final priceB = double.tryParse(
-                  (b['price'] as String).replaceAll(RegExp(r'[^\d]'), '')) ??
-              0;
-          return priceB.compareTo(priceA);
-        });
-        break;
-      case 'Newest First':
-        _filteredProperties
-            .sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
-        break;
-      case 'Distance':
-        // Mock distance sorting - in real app would use actual location data
-        _filteredProperties.shuffle();
-        break;
-      default: // Relevance
-        // Keep original order or apply relevance algorithm
-        break;
-    }
-    setState(() {});
-  }
-
+  // ---------- Advanced Filters Sheet (unchanged) ----------
   void _showAdvancedFiltersBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -568,7 +498,7 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
               label: Text(option),
               selected: false,
               onSelected: (selected) {
-                // Handle advanced filter selection
+                // future: wire to your state
               },
             );
           }).toList(),

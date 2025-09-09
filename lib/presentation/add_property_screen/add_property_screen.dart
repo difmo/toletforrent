@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -87,6 +90,42 @@ class _AddPropertyScreenState extends State<AddPropertyScreen>
     {'name': 'Internet/WiFi', 'icon': 'wifi'},
     {'name': 'Air Conditioning', 'icon': 'ac_unit'},
   ];
+
+  int _parseMoney(String s) {
+    final clean = s.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(clean) ?? 0;
+  }
+
+  Future<List<String>> _uploadPropertyImages({
+    required String uid,
+    required String propertyId,
+  }) async {
+    final storage = FirebaseStorage.instance.ref('properties/$uid/$propertyId');
+    final urls = <String>[];
+
+    for (var i = 0; i < _propertyImages.length; i++) {
+      final x = _propertyImages[i];
+      final pathRef = storage.child('$i.jpg');
+
+      if (kIsWeb) {
+        final bytes = await x.readAsBytes();
+        final task = await pathRef.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        urls.add(await task.ref.getDownloadURL());
+      } else {
+        final file = File(x.path);
+        final task = await pathRef.putFile(
+          file,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        urls.add(await task.ref.getDownloadURL());
+      }
+    }
+
+    return urls;
+  }
 
   @override
   void initState() {
@@ -234,33 +273,38 @@ class _AddPropertyScreenState extends State<AddPropertyScreen>
 
   bool _validateCurrentStep() {
     switch (_currentStep) {
-      case 0: // Images step
+      case 0:
         if (_propertyImages.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please add at least one property image'),
-              duration: Duration(seconds: 2),
-            ),
+                content: Text('Please add at least one property image')),
           );
           return false;
         }
         return true;
 
-      case 1: // Basic details step
-        if (!_formKey.currentState!.validate()) {
+      case 1:
+        if (!_formKey.currentState!.validate()) return false;
+        final rent = _parseMoney(_rentController.text);
+        if (rent <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a valid monthly rent')),
+          );
           return false;
         }
-        return true;
-
-      case 2: // Property configuration step
-        return true;
-
-      case 3: // Amenities step
         return true;
 
       default:
         return true;
     }
+  }
+
+  Future<void> _bumpUserStatsOnPublish(String uid) async {
+    final userRef =
+        FirebaseFirestore.instance.collection('toletforrent_users').doc(uid);
+    await userRef.set({
+      'stats': {'listingsPosted': FieldValue.increment(1)}
+    }, SetOptions(merge: true));
   }
 
   void _nextStep() {
@@ -292,39 +336,108 @@ class _AddPropertyScreenState extends State<AddPropertyScreen>
   }
 
   Future<void> _publishProperty() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (!_formKey.currentState!.validate() || _propertyImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete all required fields')),
+      );
+      return;
+    }
 
+    setState(() => _isLoading = true);
     try {
-      // Simulate API call to publish property
-      await Future.delayed(const Duration(seconds: 3));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not signed in');
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/property-detail-screen');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Property published successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      final uid = user.uid;
+      final propsCol = FirebaseFirestore.instance.collection('properties');
+      final docRef = propsCol.doc(); // new property id
+      final propertyId = docRef.id;
+
+      // 1) Upload images
+      final imageUrls =
+          await _uploadPropertyImages(uid: uid, propertyId: propertyId);
+      if (imageUrls.isEmpty) throw Exception('Image upload failed');
+      final primaryUrl =
+          imageUrls[_primaryImageIndex.clamp(0, imageUrls.length - 1)];
+
+      // 2) Build payload
+      final rent = _parseMoney(_rentController.text);
+      final deposit = _parseMoney(_depositController.text);
+
+      final payload = <String, dynamic>{
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'rent': rent,
+        'deposit': deposit,
+        'locationText': _locationController.text.trim(),
+        'bhk': _bhkCount,
+        'type': _propertyType,
+        'furnished': _furnishedStatus,
+        'availabilityDate': _availabilityDate != null
+            ? Timestamp.fromDate(_availabilityDate!)
+            : null,
+        'amenities': _selectedAmenities.toList(),
+        'images': imageUrls,
+        'primaryImageUrl': primaryUrl,
+        'ownerId': uid,
+        'ownerDisplayName': user.displayName ?? '',
+        'ownerPhoneVisible': _showPhone,
+        'ownerWhatsAppVisible': _showWhatsApp,
+        'status': 'Active',
+        'views': 0,
+        'inquiries': 0,
+        'postedDate': FieldValue.serverTimestamp(),
+        // denormalized few fields for quick search/list
+        'keywords': [
+          _bhkCount,
+          _propertyType,
+          _furnishedStatus,
+          _locationController.text.trim().toLowerCase(),
+        ],
+      };
+
+      // 3) Create top-level property
+      await docRef.set(payload);
+
+      // 4) Create/Update user's listing summary (used by Profile -> My Listings)
+      final userListings = FirebaseFirestore.instance
+          .collection('toletforrent_users')
+          .doc(uid)
+          .collection('listings');
+      await userListings.doc(propertyId).set({
+        'propertyId': propertyId,
+        'title': payload['title'],
+        'status': payload['status'],
+        'rent': payload['rent'],
+        'postedDate': FieldValue.serverTimestamp(),
+        'views': 0,
+        'inquiries': 0,
+        'image': primaryUrl,
+      });
+
+      if (!mounted) return;
+      _bumpUserStatsOnPublish(uid);
+      // 5) Success UI
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Property published successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to the detail screen with the new id (adjust your route to read this)
+      Navigator.pushReplacementNamed(
+        context,
+        '/property-detail-screen',
+        arguments: {'propertyId': propertyId},
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to publish property'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to publish property: $e')),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -599,6 +712,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen>
         style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
           color: AppTheme.lightTheme.colorScheme.secondary,
           fontWeight: FontWeight.w500,
+          fontSize: 10.sp,
         ),
       ),
     );

@@ -5,14 +5,14 @@ import '../../../core/app_export.dart';
 
 class OwnerContactSection extends StatelessWidget {
   final Map<String, dynamic> ownerInfo;
-  final VoidCallback onCall;
-  final VoidCallback onWhatsApp;
+  final VoidCallback? onCall;
+  final VoidCallback? onWhatsApp;
 
   const OwnerContactSection({
     super.key,
     required this.ownerInfo,
-    required this.onCall,
-    required this.onWhatsApp,
+    this.onCall,
+    this.onWhatsApp,
   });
 
   @override

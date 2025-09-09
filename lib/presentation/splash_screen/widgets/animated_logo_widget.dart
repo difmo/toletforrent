@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:sizer/sizer.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -110,14 +111,14 @@ class _AnimatedLogoWidgetState extends State<AnimatedLogoWidget>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CustomIconWidget(
-                      iconName: 'home',
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      size: 12.w,
+                    SvgPicture.asset(
+                      'assets/images/logo.svg',
+                      width: 12.w,
+                      height: 12.w,
                     ),
                     SizedBox(height: 1.h),
                     Text(
-                      'ToLet',
+                      'To-Let',
                       style: GoogleFonts.inter(
                         fontSize: 6.w,
                         fontWeight: FontWeight.w700,

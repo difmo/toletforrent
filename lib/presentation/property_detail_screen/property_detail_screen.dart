@@ -1,5 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:toletforrent/presentation/property_detail_screen/widgets/booking_sheet.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_export.dart';
 import './widgets/bottom_action_bar.dart';
@@ -13,112 +18,78 @@ import './widgets/property_map_section.dart';
 import './widgets/similar_properties_section.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
-  const PropertyDetailScreen({super.key});
+  final String? propertyId;
+  const PropertyDetailScreen({super.key, this.propertyId});
 
   @override
   State<PropertyDetailScreen> createState() => _PropertyDetailScreenState();
 }
 
 class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
-  bool _isFavorite = false;
-  late ScrollController _scrollController;
+  late final ScrollController _scrollController;
   bool _showAppBarTitle = false;
 
-  // Mock property data
-  final Map<String, dynamic> propertyData = {
-    "id": 1,
-    "title": "Luxury 3BHK Apartment in Bandra West",
-    "price": "₹85,000",
-    "location": "Bandra West, Mumbai, Maharashtra",
-    "isVerified": true,
-    "bhk": "3 BHK",
-    "area": "1,250 sq ft",
-    "furnishedStatus": "Fully Furnished",
-    "availabilityDate": "15 Jan 2025",
-    "description":
-        """This stunning 3BHK apartment in the heart of Bandra West offers the perfect blend of luxury and comfort. Located in a premium residential complex, this fully furnished home features spacious rooms with modern amenities and beautiful city views.
+  String? _propId;
+  DocumentReference<Map<String, dynamic>>? get _propRef => _propId == null
+      ? null
+      : FirebaseFirestore.instance.collection('properties').doc(_propId);
 
-The apartment boasts high-quality interiors, premium fittings, and is situated in one of Mumbai's most sought-after neighborhoods. With excellent connectivity to business districts and entertainment hubs, this property is ideal for professionals and families alike.
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  DocumentReference<Map<String, dynamic>>? get _favRef =>
+      (_uid == null || _propId == null)
+          ? null
+          : FirebaseFirestore.instance
+              .collection('toletforrent_users')
+              .doc(_uid)
+              .collection('favorites')
+              .doc(_propId);
 
-The building offers 24/7 security, power backup, and is close to schools, hospitals, shopping centers, and restaurants. Don't miss this opportunity to live in one of Mumbai's most prestigious locations.""",
-    "images": [
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3"
-    ],
-    "latitude": 19.0596,
-    "longitude": 72.8295,
-    "address": "Linking Road, Bandra West, Mumbai, Maharashtra 400050",
-    "owner": {
-      "name": "Rajesh Sharma",
-      "avatar":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isVerified": true,
-      "rating": 4.8,
-      "reviewCount": 24,
-      "phone": "+91 98765 43210"
+  // ---------- helpers ----------
+  Map<String, dynamic> asMap(Object? v) => v is Map
+      ? v.map((k, v) => MapEntry(k.toString(), v))
+      : <String, dynamic>{};
+  String asString(Object? v, {String def = ''}) => v?.toString() ?? def;
+  bool asBool(Object? v, {bool def = false}) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) return v.toLowerCase() == 'true';
+    return def;
+  }
+
+  int asInt(Object? v, {int def = 0}) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? def;
+    return def;
+  }
+
+  double asDouble(Object? v, {double def = 0}) {
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? def;
+    return def;
+  }
+
+  List<String> asStringList(Object? v) {
+    if (v is List) {
+      return v.where((e) => e != null).map((e) => e.toString()).toList();
     }
-  };
-
-  final List<Map<String, dynamic>> amenitiesData = [
-    {"icon": "local_parking", "name": "Parking", "available": true},
-    {"icon": "fitness_center", "name": "Gym", "available": true},
-    {"icon": "security", "name": "Security", "available": true},
-    {"icon": "power", "name": "Power Backup", "available": true},
-    {"icon": "pool", "name": "Swimming Pool", "available": true},
-    {"icon": "elevator", "name": "Elevator", "available": true},
-    {"icon": "wifi", "name": "Wi-Fi", "available": true},
-    {"icon": "ac_unit", "name": "AC", "available": false},
-  ];
-
-  final List<Map<String, dynamic>> nearbyAmenitiesData = [
-    {"icon": "school", "name": "Schools", "distance": "0.5 km"},
-    {"icon": "local_hospital", "name": "Hospital", "distance": "1.2 km"},
-    {"icon": "shopping_cart", "name": "Mall", "distance": "0.8 km"},
-    {"icon": "train", "name": "Station", "distance": "1.5 km"},
-    {"icon": "restaurant", "name": "Restaurants", "distance": "0.3 km"},
-  ];
-
-  final List<Map<String, dynamic>> similarPropertiesData = [
-    {
-      "id": 2,
-      "title": "Modern 2BHK in Andheri East",
-      "price": "₹65,000",
-      "location": "Andheri East, Mumbai",
-      "bhk": "2 BHK",
-      "image":
-          "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "isVerified": true,
-    },
-    {
-      "id": 3,
-      "title": "Spacious 4BHK Villa in Juhu",
-      "price": "₹1,50,000",
-      "location": "Juhu, Mumbai",
-      "bhk": "4 BHK",
-      "image":
-          "https://images.unsplash.com/photo-1484154218962-a197022b5858?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "isVerified": false,
-    },
-    {
-      "id": 4,
-      "title": "Cozy 1BHK Studio in Powai",
-      "price": "₹45,000",
-      "location": "Powai, Mumbai",
-      "bhk": "1 BHK",
-      "image":
-          "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "isVerified": true,
-    },
-  ];
+    return const [];
+  }
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_scrollListener);
+    _scrollController = ScrollController()..addListener(_scrollListener);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final routeArg = ModalRoute.of(context)?.settings.arguments;
+      final fromArgs = (routeArg is Map && routeArg['propertyId'] != null)
+          ? routeArg['propertyId'] as String
+          : null;
+      setState(() {
+        _propId = widget.propertyId ?? fromArgs;
+      });
+    });
   }
 
   @override
@@ -129,57 +100,56 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
   }
 
   void _scrollListener() {
-    if (_scrollController.offset > 200 && !_showAppBarTitle) {
-      setState(() {
-        _showAppBarTitle = true;
-      });
-    } else if (_scrollController.offset <= 200 && _showAppBarTitle) {
-      setState(() {
-        _showAppBarTitle = false;
-      });
+    final threshold = 200.0;
+    final show = _scrollController.offset > threshold;
+    if (show != _showAppBarTitle) {
+      setState(() => _showAppBarTitle = show);
     }
   }
 
-  void _toggleFavorite() {
-    setState(() {
-      _isFavorite = !_isFavorite;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text(_isFavorite ? 'Added to favorites' : 'Removed from favorites'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  // ---------- actions ----------
+  Future<void> _toggleFavorite(bool currentlyFav) async {
+    if (_favRef == null || _uid == null) return;
+    try {
+      if (currentlyFav) {
+        await _favRef!.delete();
+        if (mounted) _toast('Removed from favorites');
+      } else {
+        await _favRef!.set({
+          'addedAt': FieldValue.serverTimestamp(),
+          'propertyId': _propId,
+        });
+        if (mounted) _toast('Added to favorites');
+      }
+    } catch (e) {
+      _toast('Failed to update favorite');
+    }
   }
 
-  void _shareProperty() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Property link copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _shareProperty(String title) async {
+    final link = 'https://toletforrent.app/p/$_propId';
+    await Clipboard.setData(ClipboardData(text: link));
+    _toast('Link copied: $link');
   }
 
-  void _callOwner() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling ${propertyData['owner']['name']}...'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _callOwner(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      _toast('Cannot make a call on this device.');
+    }
   }
 
-  void _whatsAppOwner() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Opening WhatsApp chat with ${propertyData['owner']['name']}...'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _whatsAppOwner(String phone) async {
+    // Strip spaces and plus for wa.me
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('https://wa.me/$clean');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      _toast('Cannot open WhatsApp.');
+    }
   }
 
   void _scheduleVisit() {
@@ -187,18 +157,23 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildScheduleVisitBottomSheet(),
+      builder: (_) => _buildScheduleVisitBottomSheet(),
     );
   }
 
-  void _contactOwner() {
+  void _contactOwnerSheet(String name, String avatar, String phone) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildContactOwnerBottomSheet(),
+      builder: (_) => _buildContactOwnerBottomSheet(name, avatar, phone),
     );
   }
 
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ---------- sheets ----------
   Widget _buildScheduleVisitBottomSheet() {
     return Container(
       height: 50.h,
@@ -208,15 +183,7 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
       ),
       child: Column(
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.lightTheme.dividerColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          _grabHandle(),
           Padding(
             padding: EdgeInsets.all(4.w),
             child: Text(
@@ -233,40 +200,12 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
               child: Column(
                 children: [
                   Text(
-                    'Select your preferred date and time to visit this property. The owner will confirm your appointment.',
+                    'Visit scheduling coming soon. For now, please contact the owner.',
                     style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                       color: AppTheme.lightTheme.colorScheme.onSurface
                           .withValues(alpha: 0.7),
                     ),
                     textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 4.h),
-                  Container(
-                    padding: EdgeInsets.all(4.w),
-                    decoration: BoxDecoration(
-                      color: AppTheme.lightTheme.colorScheme.primary
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'info',
-                          color: AppTheme.lightTheme.colorScheme.primary,
-                          size: 20,
-                        ),
-                        SizedBox(width: 3.w),
-                        Expanded(
-                          child: Text(
-                            'Visit scheduling feature coming soon! For now, please contact the owner directly.',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                   const Spacer(),
                   Row(
@@ -280,11 +219,8 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
                       SizedBox(width: 4.w),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _contactOwner();
-                          },
-                          child: const Text('Contact Owner'),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
                         ),
                       ),
                     ],
@@ -298,7 +234,8 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
     );
   }
 
-  Widget _buildContactOwnerBottomSheet() {
+  Widget _buildContactOwnerBottomSheet(
+      String name, String avatar, String phone) {
     return Container(
       height: 35.h,
       decoration: BoxDecoration(
@@ -307,22 +244,13 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
       ),
       child: Column(
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.lightTheme.dividerColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          _grabHandle(),
           Padding(
             padding: EdgeInsets.all(4.w),
             child: Text(
               'Contact Property Owner',
               style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppTheme.lightTheme.colorScheme.onSurface,
               ),
             ),
           ),
@@ -339,17 +267,24 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppTheme.lightTheme.dividerColor,
-                            width: 2,
-                          ),
+                              color: AppTheme.lightTheme.dividerColor,
+                              width: 2),
                         ),
                         child: ClipOval(
-                          child: CustomImageWidget(
-                            imageUrl: propertyData['owner']['avatar'] as String,
-                            width: 15.w,
-                            height: 15.w,
-                            fit: BoxFit.cover,
-                          ),
+                          child: avatar.isEmpty
+                              ? Icon(
+                                  Icons.person,
+                                  size: 28,
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                )
+                              : CustomImageWidget(
+                                  imageUrl: avatar,
+                                  width: 15.w,
+                                  height: 15.w,
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                       ),
                       SizedBox(width: 4.w),
@@ -357,15 +292,11 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              propertyData['owner']['name'] as String,
-                              style: AppTheme.lightTheme.textTheme.titleMedium
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    AppTheme.lightTheme.colorScheme.onSurface,
-                              ),
-                            ),
+                            Text(name,
+                                style: AppTheme.lightTheme.textTheme.titleMedium
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                )),
                             Text(
                               'Property Owner',
                               style: AppTheme.lightTheme.textTheme.bodyMedium
@@ -384,10 +315,7 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _callOwner();
-                          },
+                          onPressed: () => _callOwner(phone),
                           icon: CustomIconWidget(
                             iconName: 'phone',
                             color: AppTheme.lightTheme.colorScheme.onPrimary,
@@ -399,23 +327,14 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
                       SizedBox(width: 4.w),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _whatsAppOwner();
-                          },
+                          onPressed: () => _whatsAppOwner(phone),
                           icon: CustomIconWidget(
-                            iconName: 'chat',
-                            color: Colors.green,
-                            size: 18,
-                          ),
-                          label: Text(
-                            'WhatsApp',
-                            style: TextStyle(color: Colors.green),
-                          ),
+                              iconName: 'chat', color: Colors.green, size: 18),
+                          label: const Text('WhatsApp',
+                              style: TextStyle(color: Colors.green)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                                color: Colors.green, width: 1.5),
-                          ),
+                              side: const BorderSide(
+                                  color: Colors.green, width: 1.5)),
                         ),
                       ),
                     ],
@@ -429,155 +348,339 @@ The building offers 24/7 security, power backup, and is close to schools, hospit
     );
   }
 
+  Widget _grabHandle() => Container(
+        width: 40,
+        height: 4,
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.lightTheme.dividerColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
+
+  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 35.h,
-                floating: false,
-                pinned: true,
-                backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-                foregroundColor: AppTheme.lightTheme.colorScheme.onSurface,
-                elevation: 0,
-                leading: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.lightTheme.colorScheme.surface
-                          .withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(20),
+    final theme = AppTheme.lightTheme;
+
+    // Wait one frame for id resolve
+    if (_propId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _propRef!.snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        if (!snap.hasData || !snap.data!.exists) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Property')),
+            body: Center(
+              child: Padding(
+                padding: EdgeInsets.all(6.w),
+                child: Text('Property not found or removed.',
+                    style: theme.textTheme.titleMedium),
+              ),
+            ),
+          );
+        }
+
+        final d = snap.data!.data()!;
+        final title = asString(d['title'], def: 'Property');
+        final price = asInt(d['rent']) > 0 ? '₹${asInt(d['rent'])}/month' : '—';
+        final location = asString(d['locationText'], def: '—');
+        final isVerified = asBool(d['isVerified']);
+        final images = asStringList(d['images']);
+        final primary = asString(d['primaryImageUrl'],
+            def: images.isNotEmpty ? images.first : '');
+        final bhk = asString(d['bhk'], def: '—');
+        final area = asString(d['area'], def: '—'); // optional in your schema
+        final furn = asString(d['furnished'], def: '—');
+        final availTs = d['availabilityDate'] as Timestamp?;
+        final availability = availTs != null
+            ? '${availTs.toDate().day}-${availTs.toDate().month}-${availTs.toDate().year}'
+            : '—';
+        final amenities = asStringList(d['amenities']);
+        final lat = asDouble(d['latitude']);
+        final lng = asDouble(d['longitude']);
+        final address = asString(d['address'], def: location);
+        final ownerId = asString(d['ownerId']);
+        final desc = asString(d['description']);
+
+        // Owner stream
+        final ownerRef = ownerId.isEmpty
+            ? null
+            : FirebaseFirestore.instance
+                .collection('toletforrent_users')
+                .doc(ownerId);
+
+        // Similar properties stream
+        final similarStream = FirebaseFirestore.instance
+            .collection('properties')
+            .where('type', isEqualTo: asString(d['type']))
+            .limit(10)
+            .snapshots();
+
+        return Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: Stack(
+            children: [
+              CustomScrollView(
+                // controller: _scrollController,
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 35.h,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: theme.colorScheme.surface,
+                    foregroundColor: theme.colorScheme.onSurface,
+                    elevation: 0,
+                    leading: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new),
                     ),
-                    child: CustomIconWidget(
-                      iconName: 'arrow_back_ios_new',
-                      color: AppTheme.lightTheme.colorScheme.onSurface,
-                      size: 20,
+                    actions: [
+                      IconButton(
+                        onPressed: () => _shareProperty(title),
+                        icon: const Icon(Icons.share),
+                      ),
+                      // favorite state from stream
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: _favRef?.snapshots(),
+                        builder: (context, favSnap) {
+                          final isFav = favSnap.data?.exists == true;
+                          return IconButton(
+                            onPressed: () => _toggleFavorite(isFav),
+                            icon: Icon(
+                                isFav ? Icons.favorite : Icons.favorite_border,
+                                color:
+                                    isFav ? theme.colorScheme.primary : null),
+                          );
+                        },
+                      ),
+                    ],
+                    title: _showAppBarTitle
+                        ? Text(
+                            title,
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : null,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: (images.isEmpty && primary.isEmpty)
+                          ? _fallbackHero(theme)
+                          : PropertyImageCarousel(
+                              images: images.isNotEmpty ? images : [primary],
+                              propertyTitle: title,
+                            ),
                     ),
                   ),
-                ),
-                actions: [
-                  GestureDetector(
-                    onTap: _shareProperty,
-                    child: Container(
-                      margin: const EdgeInsets.all(8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.surface
-                            .withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: CustomIconWidget(
-                        iconName: 'share',
-                        color: AppTheme.lightTheme.colorScheme.onSurface,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _toggleFavorite,
-                    child: Container(
-                      margin: const EdgeInsets.all(8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _isFavorite
-                            ? AppTheme.lightTheme.colorScheme.primary
-                                .withValues(alpha: 0.9)
-                            : AppTheme.lightTheme.colorScheme.surface
-                                .withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: CustomIconWidget(
-                        iconName: _isFavorite ? 'favorite' : 'favorite_border',
-                        color: _isFavorite
-                            ? AppTheme.lightTheme.colorScheme.onPrimary
-                            : AppTheme.lightTheme.colorScheme.onSurface,
-                        size: 20,
-                      ),
+
+                  // CONTENT
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        PropertyHeaderSection(
+                          title: title,
+                          price: price,
+                          location: location,
+                          isVerified: isVerified,
+                          isFavorite:
+                              false, // Not used; we control favorite via app bar
+                          onFavoriteToggle: () {}, // no-op
+                          onShare: () => _shareProperty(title),
+                        ),
+                        PropertyDetailsSection(
+                          bhk: bhk,
+                          area: area.isEmpty ? '—' : area,
+                          furnishedStatus: furn,
+                          availabilityDate: availability,
+                        ),
+                        if (amenities.isNotEmpty)
+                          PropertyAmenitiesSection(
+                            amenities: amenities
+                                .map((e) => {
+                                      "icon": _amenityToIcon(e),
+                                      "name": e,
+                                      "available": true,
+                                    })
+                                .toList(),
+                          ),
+                        if (desc.isNotEmpty)
+                          PropertyDescriptionSection(description: desc),
+
+                        if (lat != 0 && lng != 0)
+                          PropertyMapSection(
+                            address: address,
+                            latitude: lat,
+                            longitude: lng,
+                            nearbyAmenities: const [],
+                          ),
+
+                        // Owner card (live)
+                        if (ownerRef != null)
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: ownerRef.snapshots(),
+                            builder: (context, oSnap) {
+                              final od = oSnap.data?.data() ?? {};
+                              final ownerName =
+                                  asString(od['name'], def: 'Owner');
+                              final ownerAvatar = asString(od['avatar'],
+                                  def: ''); // <- no network placeholder
+
+                              final ownerVerified = asBool(od['isVerified']);
+                              final rating = (od['rating'] is num)
+                                  ? (od['rating'] as num).toDouble()
+                                  : 4.5;
+                              final reviewCount =
+                                  asInt(od['reviewCount'], def: 0);
+                              final phone = asString(od['phone'], def: '');
+
+                              return OwnerContactSection(
+                                ownerInfo: {
+                                  "name": ownerName,
+                                  "avatar": ownerAvatar,
+                                  "isVerified": ownerVerified,
+                                  "rating": rating,
+                                  "reviewCount": reviewCount,
+                                  "phone": phone,
+                                },
+                                // onCall: phone.isEmpty
+                                //     ? null
+                                //     : () => _callOwner(phone),
+                                // onWhatsApp: phone.isEmpty
+                                //     ? null
+                                //     : () => _whatsAppOwner(phone),
+                              );
+                            },
+                          ),
+
+                        // Similar properties
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: similarStream,
+                          builder: (context, sSnap) {
+                            final items = sSnap.data?.docs
+                                    .map((e) => e.data()..['id'] = e.id)
+                                    .where((e) => e['id'] != _propId)
+                                    .map((e) => {
+                                          "id": e['id'],
+                                          "title": asString(e['title']),
+                                          "price": asInt(e['rent']) > 0
+                                              ? '₹${asInt(e['rent'])}'
+                                              : '—',
+                                          "location":
+                                              asString(e['locationText']),
+                                          "bhk": asString(e['bhk']),
+                                          "image": asString(
+                                              e['primaryImageUrl'],
+                                              def: asStringList(e['images'])
+                                                      .firstOrNull ??
+                                                  ''),
+                                          "isVerified": asBool(e['isVerified']),
+                                        })
+                                    .toList() ??
+                                [];
+                            if (items.isEmpty) return const SizedBox.shrink();
+                            return SimilarPropertiesSection(
+                                similarProperties: items);
+                          },
+                        ),
+
+                        // extra space for bottom bar
+                        SizedBox(height: 12.h),
+                      ],
                     ),
                   ),
                 ],
-                title: _showAppBarTitle
-                    ? Text(
-                        propertyData['title'] as String,
-                        style:
-                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.lightTheme.colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    : null,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: PropertyImageCarousel(
-                    images: (propertyData['images'] as List).cast<String>(),
-                    propertyTitle: propertyData['title'] as String,
-                  ),
-                ),
               ),
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    PropertyHeaderSection(
-                      title: propertyData['title'] as String,
-                      price: propertyData['price'] as String,
-                      location: propertyData['location'] as String,
-                      isVerified: propertyData['isVerified'] as bool,
-                      isFavorite: _isFavorite,
-                      onFavoriteToggle: _toggleFavorite,
-                      onShare: _shareProperty,
-                    ),
-                    PropertyDetailsSection(
-                      bhk: propertyData['bhk'] as String,
-                      area: propertyData['area'] as String,
-                      furnishedStatus:
-                          propertyData['furnishedStatus'] as String,
-                      availabilityDate:
-                          propertyData['availabilityDate'] as String,
-                    ),
-                    PropertyAmenitiesSection(
-                      amenities: amenitiesData,
-                    ),
-                    PropertyDescriptionSection(
-                      description: propertyData['description'] as String,
-                    ),
-                    PropertyMapSection(
-                      address: propertyData['address'] as String,
-                      latitude: propertyData['latitude'] as double,
-                      longitude: propertyData['longitude'] as double,
-                      nearbyAmenities: nearbyAmenitiesData,
-                    ),
-                    OwnerContactSection(
-                      ownerInfo: propertyData['owner'] as Map<String, dynamic>,
-                      onCall: _callOwner,
-                      onWhatsApp: _whatsAppOwner,
-                    ),
-                    SimilarPropertiesSection(
-                      similarProperties: similarPropertiesData,
-                    ),
-                    SizedBox(height: 10.h), // Space for bottom action bar
-                  ],
+
+              // Bottom bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: ownerRef?.snapshots(),
+                  builder: (context, oSnap) {
+                    final od = oSnap.data?.data() ?? {};
+                    final phone = asString(od['phone'], def: '');
+                    return BottomActionBar(
+                      onScheduleVisit: _scheduleVisit,
+                      // onContactOwner: phone.isEmpty
+                      //     ? null
+                      //     : () => _contactOwnerSheet(
+                      //           asString(od['name'], def: 'Owner'),
+                      //           asString(od['avatar'],
+                      //               def: ''), // <- no network placeholder
+                      //           phone,
+                      //         ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: BottomActionBar(
-              onScheduleVisit: _scheduleVisit,
-              onContactOwner: _contactOwner,
-            ),
+          bottomSheet: // PropertyDetailScreen (where you render BottomActionBar)
+              BottomActionBar(
+            onScheduleVisit: _scheduleVisit,
+            onContactOwner: () {
+              // add this prop and wire it in BottomActionBar
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => BookingSheet(
+                  propertyId: _propId!,
+                  propertyTitle: title,
+                  monthlyRent: asInt(d['rent']),
+                  deposit: asInt(d['deposit']),
+                  ownerId: asString(d['ownerId']),
+                ),
+              );
+            },
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _fallbackHero(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image,
+        size: 56,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
       ),
     );
   }
+
+  // Map amenity names in your DB to icon keys your widgets expect
+  String _amenityToIcon(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('parking')) return 'local_parking';
+    if (n.contains('gym') || n.contains('fitness')) return 'fitness_center';
+    if (n.contains('security')) return 'security';
+    if (n.contains('power')) return 'power';
+    if (n.contains('lift') || n.contains('elevator')) return 'elevator';
+    if (n.contains('pool')) return 'pool';
+    if (n.contains('wifi') || n.contains('internet')) return 'wifi';
+    if (n.contains('ac') || n.contains('air')) return 'ac_unit';
+    if (n.contains('garden')) return 'local_florist';
+    if (n.contains('play')) return 'sports_soccer';
+    if (n.contains('cctv')) return 'videocam';
+    if (n.contains('water')) return 'water_drop';
+    return 'check_circle';
+  }
+}
+
+// tiny extension
+extension FirstOrNull<E> on List<E> {
+  E? get firstOrNull => isEmpty ? null : first;
 }

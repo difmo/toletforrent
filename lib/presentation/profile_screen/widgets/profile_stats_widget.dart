@@ -77,7 +77,7 @@ class ProfileStatsWidget extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 2.w,
             mainAxisSpacing: 2.h,
-            childAspectRatio: 2.5,
+            childAspectRatio: 3 / 2,
             children: [
               _buildStatCard(
                 icon: 'visibility',
@@ -124,11 +124,11 @@ class ProfileStatsWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CustomIconWidget(
-            iconName: icon,
-            color: AppTheme.lightTheme.colorScheme.primary,
-            size: 24,
-          ),
+          // CustomIconWidget(
+          //   iconName: icon,
+          //   color: AppTheme.lightTheme.colorScheme.primary,
+          //   size: 24,
+          // ),
           SizedBox(height: 1.h),
           Text(
             value.toString(),

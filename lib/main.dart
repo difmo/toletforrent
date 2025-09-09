@@ -1,13 +1,22 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:toletforrent/data/services/fcm_service.dart';
+import 'package:toletforrent/data/services/notifications_service.dart';
+import 'package:toletforrent/firebase_options.dart';
 
 import '../core/app_export.dart';
 import '../widgets/custom_error_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await NotificationsService.I.init();
+  await FcmService.I.init();
   // 🚨 CRITICAL: Custom error handling - DO NOT REMOVE
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return CustomErrorWidget(
@@ -28,21 +37,13 @@ class MyApp extends StatelessWidget {
     return Sizer(builder: (context, orientation, screenType) {
       return MaterialApp(
         title: 'toletforrent',
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.light,
-        // 🚨 CRITICAL: NEVER REMOVE OR MODIFY
-        builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: TextScaler.linear(1.0),
-            ),
-            child: child!,
-          );
-        },
-        // 🚨 END CRITICAL SECTION
-        debugShowCheckedModeBanner: false,
         routes: AppRoutes.routes,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        onUnknownRoute: AppRoutes.onUnknownRoute,
         initialRoute: AppRoutes.initial,
       );
     });

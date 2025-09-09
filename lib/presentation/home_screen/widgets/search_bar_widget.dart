@@ -73,14 +73,21 @@ class SearchBarWidget extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(2.h),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.primary,
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.lightTheme.colorScheme.primary,
+                    AppTheme.lightTheme.colorScheme.secondary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: AppTheme.lightTheme.colorScheme.primary
-                        .withValues(alpha: 0.3),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                        .withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),

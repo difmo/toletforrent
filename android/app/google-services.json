@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "1087273878944",
+    "project_id": "vvsamajapp",
+    "storage_bucket": "vvsamajapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087273878944:android:1245068b6f2591ac0990c5",
+        "android_client_info": {
+          "package_name": "com.example.vvs_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1087273878944-ka0oovv25fh48dqb5eat0r37gvb2vi0q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiMZ7pEL5l4JYN2eEzC8GRx7pCeRKFD-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1087273878944-ka0oovv25fh48dqb5eat0r37gvb2vi0q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1087273878944-2d69vdfj80m4kljc81p5og02q91ifrai.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.toletforrent.app.testProject"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087273878944:android:df3969c48dab0b280990c5",
+        "android_client_info": {
+          "package_name": "com.toletforrent.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1087273878944-t6ho0mrqhim5jkv8gvq7nvgmejkd2t9o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.toletforrent.app",
+            "certificate_hash": "97cd63cfdbc2d002928c5e9983bf9a8066148d17"
+          }
+        },
+        {
+          "client_id": "1087273878944-ka0oovv25fh48dqb5eat0r37gvb2vi0q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiMZ7pEL5l4JYN2eEzC8GRx7pCeRKFD-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1087273878944-ka0oovv25fh48dqb5eat0r37gvb2vi0q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1087273878944-2d69vdfj80m4kljc81p5og02q91ifrai.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.toletforrent.app.testProject"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
