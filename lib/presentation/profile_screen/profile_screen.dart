@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
+import 'package:toletforrent/presentation/profile_screen/widgets/StatusChip.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_bottom_bar.dart';
@@ -28,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   CollectionReference<Map<String, dynamic>>? get _historyRef =>
-      _userRef?.collection('rentalHistory');
+      _userRef?.collection('rentals');
 
   CollectionReference<Map<String, dynamic>>? get _listingsRef =>
       _userRef?.collection('listings');
@@ -576,16 +577,31 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Rental History',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Rental History',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/rental-history-screen');
+                      },
+                      icon: CustomIconWidget(
+                        iconName: 'history',
+                        color: theme.colorScheme.primary,
+                        size: 18,
+                      ),
+                      label: const Text('View All'),
+                    ),
+                  ],
                 ),
               ),
+
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _historyRef!
@@ -616,84 +632,79 @@ class _ProfileScreenState extends State<ProfileScreen>
                         final owner = (d['ownerName'] ?? '') as String;
                         final sd = (d['startDate'] as Timestamp?)?.toDate();
                         final ed = (d['endDate'] as Timestamp?)?.toDate();
-                        final rent = (d['monthlyRent'] ?? 0);
-
-                        return Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(4.w),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CustomImageWidget(
-                                    imageUrl: img,
-                                    width: 20.w,
-                                    height: 20.w,
+                        final rent = (d['deposit'] ?? 0);
+                        final propertyId = (d['propertyId'] ?? '') as String;
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/property-detail-screen',
+                              arguments: {'propertyId': propertyId},
+                            );
+                          },
+                          child: Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(4.w),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: CustomImageWidget(
+                                      imageUrl: img,
+                                      width: 20.w,
+                                      height: 20.w,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 4.w),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              title,
-                                              style: theme.textTheme.titleMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
+                                  SizedBox(width: 4.w),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                title,
+                                                style: theme
+                                                    .textTheme.titleMedium
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: _getStatusColor(status),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
+                                            SizedBox(
+                                              child: StatusChip(status: status),
                                             ),
-                                            child: Text(
-                                              status,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 10.sp,
-                                                fontWeight: FontWeight.w600,
-                                                color: theme
-                                                    .colorScheme.onSecondary,
-                                              ),
-                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 1.h),
+                                        Text('Owner: $owner',
+                                            style: theme.textTheme.bodyMedium),
+                                        Text(
+                                          '${sd != null ? _formatMonthYear(sd) : '—'} - ${ed != null ? _formatMonthYear(ed) : 'Present'}',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
                                           ),
-                                        ],
-                                      ),
-                                      SizedBox(height: 1.h),
-                                      Text('Owner: $owner',
-                                          style: theme.textTheme.bodyMedium),
-                                      Text(
-                                        '${sd != null ? _formatMonthYear(sd) : '—'} - ${ed != null ? _formatMonthYear(ed) : 'Present'}',
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
                                         ),
-                                      ),
-                                      Text(
-                                        _formatCurrency(rent),
-                                        style: theme.textTheme.titleSmall
-                                            ?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                          fontWeight: FontWeight.w600,
+                                        Text(
+                                          _formatCurrency(rent),
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );

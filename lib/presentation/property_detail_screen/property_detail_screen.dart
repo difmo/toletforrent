@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:toletforrent/presentation/property_detail_screen/widgets/booking_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_export.dart';
@@ -623,6 +624,25 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 ),
               ),
             ],
+          ),
+          bottomSheet: // PropertyDetailScreen (where you render BottomActionBar)
+              BottomActionBar(
+            onScheduleVisit: _scheduleVisit,
+            onContactOwner: () {
+              // add this prop and wire it in BottomActionBar
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => BookingSheet(
+                  propertyId: _propId!,
+                  propertyTitle: title,
+                  monthlyRent: asInt(d['rent']),
+                  deposit: asInt(d['deposit']),
+                  ownerId: asString(d['ownerId']),
+                ),
+              );
+            },
           ),
         );
       },

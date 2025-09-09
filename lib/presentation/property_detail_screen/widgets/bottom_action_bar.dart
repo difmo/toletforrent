@@ -79,13 +79,13 @@ class BottomActionBar extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CustomIconWidget(
-                      iconName: 'person',
+                      iconName: 'payment',
                       color: AppTheme.lightTheme.colorScheme.onPrimary,
                       size: 18,
                     ),
                     SizedBox(width: 2.w),
                     Text(
-                      'Contact Owner',
+                      'Pay & Book',
                       style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
                         color: AppTheme.lightTheme.colorScheme.onPrimary,
                         fontWeight: FontWeight.w500,

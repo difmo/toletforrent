@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toletforrent/presentation/edit_profile/EditProfileScreen.dart';
+import 'package:toletforrent/presentation/rent_payment/rent_payment_screen.dart';
+import 'package:toletforrent/presentation/rental_history_screen/rental_history_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/property_search_screen/property_search_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
@@ -24,6 +26,9 @@ class AppRoutes {
   static const String messages = '/messages-screen';
   static const String profile = '/profile-screen';
   static const String editProfile = '/edit-profile-screen'; // example unknown route
+  static const String rentPayment = '/rent-payment-screen';
+  static const String rentalHistory = '/rental-history-screen';
+  
 
   /// Static routes
   static Map<String, WidgetBuilder> routes = {
@@ -39,6 +44,9 @@ class AppRoutes {
     messages: (context) => const MessagesScreen(),
     profile: (context) => const ProfileScreen(),
     editProfile: (context) => const EditProfileScreen(), // example unknown route
+    rentPayment: (context) => const RentPaymentScreen(),
+    rentalHistory: (context) => const RentalHistoryScreen(),
+
   };
 
   /// Handles dynamic routes with query params or arguments
