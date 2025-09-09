@@ -124,11 +124,11 @@ class ProfileStatsWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CustomIconWidget(
-            iconName: icon,
-            color: AppTheme.lightTheme.colorScheme.primary,
-            size: 24,
-          ),
+          // CustomIconWidget(
+          //   iconName: icon,
+          //   color: AppTheme.lightTheme.colorScheme.primary,
+          //   size: 24,
+          // ),
           SizedBox(height: 1.h),
           Text(
             value.toString(),

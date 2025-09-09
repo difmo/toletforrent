@@ -493,11 +493,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 color: theme.colorScheme.onPrimary.withValues(alpha: 0.9),
               ),
             ),
-            SizedBox(height: 0.5.h),
+            // SizedBox(height: 0.5.h),
             Text(
               'Member since $memberSince',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onPrimary.withValues(alpha: 0.7),
+                fontSize: 10.sp,
               ),
             ),
           ],

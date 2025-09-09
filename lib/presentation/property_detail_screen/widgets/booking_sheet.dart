@@ -32,8 +32,7 @@ class _BookingSheetState extends State<BookingSheet> {
   final _auth = FirebaseAuth.instance;
   final _pay = PaymentService();
   // IMPORTANT: callables live in asia-south1
-  final FirebaseFunctions _fns =
-      FirebaseFunctions.instanceFor(region: 'asia-south1');
+  final FirebaseFunctions _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   DateTime _startDate = DateTime.now();
   int _months = 11;
@@ -63,14 +62,12 @@ class _BookingSheetState extends State<BookingSheet> {
 
         final rootCtx = nav.overlay?.context ?? context;
         _safeSnack(rootCtx, 'Payment success! Verifying…');
-        debugPrint(
-            '[PAY] onSuccess paymentId=${s.paymentId} orderId=${s.orderId} sig=${s.signature} bookingId=$_pendingBookingId');
+        debugPrint('[PAY] onSuccess paymentId=${s.paymentId} orderId=${s.orderId} sig=${s.signature} bookingId=$_pendingBookingId');
 
         final user = _auth.currentUser;
         final bookingId = _pendingBookingId;
         if (user == null || bookingId == null) {
-          debugPrint(
-              '[PAY] Missing user or bookingId; skipping client finalize.');
+          debugPrint('[PAY] Missing user or bookingId; skipping client finalize.');
           setState(() => _submitting = false);
           _safeSnack(rootCtx, 'Payment received. Finalizing in background…');
           return;
@@ -196,10 +193,8 @@ class _BookingSheetState extends State<BookingSheet> {
     }
 
     try {
-      debugPrint(
-          '[PAY] verifyRazorpayPayment() -> booking=$bookingId order=$orderId payment=$paymentId');
-      final callable =
-          _fns.httpsCallable('verifyRazorpayPayment'); // <-- FIXED REGION
+      debugPrint('[PAY] verifyRazorpayPayment() -> booking=$bookingId order=$orderId payment=$paymentId');
+      final callable = _fns.httpsCallable('verifyRazorpayPayment'); // <-- FIXED REGION
       final res = await callable.call({
         'bookingId': bookingId,
         'orderId': orderId,
@@ -211,26 +206,19 @@ class _BookingSheetState extends State<BookingSheet> {
       final status = (data['status'] ?? '').toString().toLowerCase();
       debugPrint('[PAY] verify response: $data');
 
-      if (status == 'captured' ||
-          status == 'authorized' ||
-          status == 'success') {
+      if (status == 'captured' || status == 'authorized' || status == 'success') {
         await _finalizeAsActive(bookingId: bookingId, paymentId: paymentId);
         _safeSnack(rootCtx, 'Payment verified. Booking activated!');
-        if (mounted) setState(() => _submitting = false);
-        Navigator.pop(context);
-        Navigator.pushNamed(context, '/rent-payment-screen');
+        
       } else {
         _safeSnack(rootCtx, 'Payment recorded. Waiting for confirmation…');
       }
     } on FirebaseFunctionsException catch (e, st) {
-      debugPrint(
-          '[PAY] verify failed (functions): code=${e.code} msg=${e.message} details=${e.details}\n$st');
-      _safeSnack(
-          rootCtx, 'Payment received. We’ll finish verification shortly…');
+      debugPrint('[PAY] verify failed (functions): code=${e.code} msg=${e.message} details=${e.details}\n$st');
+      _safeSnack(rootCtx, 'Payment received. We’ll finish verification shortly…');
     } catch (e, st) {
       debugPrint('[PAY] verify failed (unexpected): $e\n$st');
-      _safeSnack(
-          rootCtx, 'Payment received. We’ll finish verification shortly…');
+      _safeSnack(rootCtx, 'Payment received. We’ll finish verification shortly…');
     }
   }
 
@@ -242,8 +230,7 @@ class _BookingSheetState extends State<BookingSheet> {
     String? paymentId,
   }) async {
     try {
-      final propSnap =
-          await _db.collection('properties').doc(widget.propertyId).get();
+      final propSnap = await _db.collection('properties').doc(widget.propertyId).get();
       final prop = propSnap.data() ?? {};
 
       final rentalRef = _db
@@ -331,8 +318,7 @@ class _BookingSheetState extends State<BookingSheet> {
               SizedBox(height: 2.h),
               Row(
                 children: [
-                  Expanded(
-                      child: _InfoTile(title: 'Monthly Rent', value: _price)),
+                  Expanded(child: _InfoTile(title: 'Monthly Rent', value: _price)),
                   SizedBox(width: 3.w),
                   Expanded(child: _InfoTile(title: 'Deposit', value: _deposit)),
                 ],
@@ -353,9 +339,7 @@ class _BookingSheetState extends State<BookingSheet> {
                   Expanded(
                     child: Row(
                       children: [
-                        Expanded(
-                            child: _InfoTile(
-                                title: 'Tenure', value: '$_months months')),
+                        Expanded(child: _InfoTile(title: 'Tenure', value: '$_months months')),
                         SizedBox(width: 2.w),
                         _Stepper(
                           value: _months,
@@ -369,9 +353,7 @@ class _BookingSheetState extends State<BookingSheet> {
                 ],
               ),
               SizedBox(height: 2.h),
-              _TotalRow(
-                  label: 'Pay Now (Deposit + 1st Month)',
-                  value: _totalPayNowStr),
+              _TotalRow(label: 'Pay Now (Deposit + 1st Month)', value: _totalPayNowStr),
               SizedBox(height: 2.h),
               SizedBox(
                 width: double.infinity,
@@ -403,8 +385,7 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.25),
+        color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -412,8 +393,7 @@ class _InfoTile extends StatelessWidget {
         SizedBox(height: 0.4.h),
         Text(
           value,
-          style: AppTheme.lightTheme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w700),
+          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ]),
     );
@@ -427,8 +407,7 @@ class _TotalRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-            child: Text(label, style: AppTheme.lightTheme.textTheme.bodyLarge)),
+        Expanded(child: Text(label, style: AppTheme.lightTheme.textTheme.bodyLarge)),
         Text(
           value,
           style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
@@ -454,15 +433,9 @@ class _Stepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      _Btn(
-          icon: 'remove',
-          enabled: value > min,
-          onTap: () => onChanged(value - 1)),
-      Padding(
-          padding: EdgeInsets.symmetric(horizontal: 2.w),
-          child: Text('$value')),
-      _Btn(
-          icon: 'add', enabled: value < max, onTap: () => onChanged(value + 1)),
+      _Btn(icon: 'remove', enabled: value > min, onTap: () => onChanged(value - 1)),
+      Padding(padding: EdgeInsets.symmetric(horizontal: 2.w), child: Text('$value')),
+      _Btn(icon: 'add', enabled: value < max, onTap: () => onChanged(value + 1)),
     ]);
   }
 }
@@ -487,9 +460,7 @@ class _Btn extends StatelessWidget {
         child: Icon(
           icon == 'add' ? Icons.add : Icons.remove,
           size: 16,
-          color: enabled
-              ? AppTheme.lightTheme.colorScheme.primary
-              : AppTheme.lightTheme.disabledColor,
+          color: enabled ? AppTheme.lightTheme.colorScheme.primary : AppTheme.lightTheme.disabledColor,
         ),
       ),
     );
