@@ -325,7 +325,7 @@ class _PropertySearchScreenState extends State<PropertySearchScreen> {
     );
   }
 
-  // ---------- handlers (unchanged API) ----------
+  // ---------- handlers (unchanged API)----------
   void _handleSearchChanged(String query) {
     setState(() => _searchQuery = query);
     // No manual fetch; StreamBuilder reacts to state (server + client filters)

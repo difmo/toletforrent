@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:sizer/sizer.dart';
+import 'package:toletforrent/presentation/home_screen/widgets/city_picker_bottom_sheet.dart';
+import 'package:toletforrent/presentation/home_screen/widgets/location_header_live.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_bottom_bar.dart';
@@ -23,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // UI state
   String _currentCity = 'Mumbai, Maharashtra';
+  Position? _currentPos;
   String _selectedCategory = 'All';
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -282,6 +286,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     };
   }
 
+
+
   String _month3(int m) {
     const mm = [
       'Jan',
@@ -309,13 +315,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _loadMore() => _fetchPage(reset: false);
 
-  void _onLocationTap() {
-    showModalBottomSheet(
+  void _onLocationTap() async {
+    final result = await showModalBottomSheet<PlaceSelectionResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildLocationBottomSheet(),
+      builder: (_) => CityPickerBottomSheet(
+        initialCity: _currentCity,
+        initialPosition: _currentPos,
+        radiusKm: 10, // show nearby 10 km
+      ),
     );
+
+    if (result != null) {
+      setState(() {
+        _currentCity = result.displayName;
+        _currentPos = result.position;
+      });
+      // TODO: requery your listings using _currentPos within 10km if needed
+    }
   }
 
   void _onSearchTap() {
@@ -461,10 +479,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Location Header
-                LocationHeaderWidget(
+                LocationHeaderLive(
                   currentCity: _currentCity,
-                  onLocationTap: _onLocationTap,
+                  radiusKm: 10,
+                  onCityChanged: (c) => setState(() => _currentCity = c),
+                  onPositionChanged: (p) => setState(() => _currentPos = p),
+                  onChangeTap: _onLocationTap,
                 ),
 
                 // Search Bar
@@ -624,62 +644,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildLoadingState() {
-    return Column(
-      children: [
-        // Featured skeleton
-        Container(
-          height: 35.h,
-          margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-          decoration: BoxDecoration(
-            color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        // Category chips skeleton
-        Container(
-          height: 6.h,
-          margin: EdgeInsets.symmetric(horizontal: 4.w),
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: 5,
-            separatorBuilder: (context, index) => SizedBox(width: 2.w),
-            itemBuilder: (context, index) => Container(
-              width: 20.w,
-              decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 2.h),
-        // Grid skeleton
-        Expanded(
-          child: GridView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 100.w > 600 ? 3 : 2,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: 3.w,
-              mainAxisSpacing: 2.h,
-            ),
-            itemCount: 6,
-            itemBuilder: (context, index) => Container(
-              decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildLocationBottomSheet() {
     final cities = [
       'Mumbai, Maharashtra',
@@ -741,7 +705,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               itemBuilder: (context, index) {
                 final city = cities[index];
                 final isSelected = city == _currentCity;
-
                 return ListTile(
                   leading: CustomIconWidget(
                     iconName: 'location_city',

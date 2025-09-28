@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:toletforrent/presentation/edit_profile/EditProfileScreen.dart';
 import 'package:toletforrent/presentation/rent_payment/rent_payment_screen.dart';
 import 'package:toletforrent/presentation/rental_history_screen/rental_history_screen.dart';
+import 'package:toletforrent/presentation/visits_screens/MyVisitsScreen.dart';
+import 'package:toletforrent/presentation/visits_screens/OwnerVisitsScreen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/property_search_screen/property_search_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
@@ -25,10 +27,12 @@ class AppRoutes {
   static const String addProperty = '/add-property-screen';
   static const String messages = '/messages-screen';
   static const String profile = '/profile-screen';
-  static const String editProfile = '/edit-profile-screen'; // example unknown route
+  static const String editProfile =
+      '/edit-profile-screen'; // example unknown route
   static const String rentPayment = '/rent-payment-screen';
   static const String rentalHistory = '/rental-history-screen';
-  
+  static const String myVisits = '/my-visits';
+  static const String ownerVisits = '/owner-visits';
 
   /// Static routes
   static Map<String, WidgetBuilder> routes = {
@@ -43,10 +47,12 @@ class AppRoutes {
     addProperty: (context) => const AddPropertyScreen(),
     messages: (context) => const MessagesScreen(),
     profile: (context) => const ProfileScreen(),
-    editProfile: (context) => const EditProfileScreen(), // example unknown route
+    editProfile: (context) =>
+        const EditProfileScreen(), // example unknown route
     rentPayment: (context) => const RentPaymentScreen(),
     rentalHistory: (context) => const RentalHistoryScreen(),
-
+    myVisits: (context) => const MyVisitsScreen(),
+    ownerVisits: (context) => const OwnerVisitsScreen(),
   };
 
   /// Handles dynamic routes with query params or arguments

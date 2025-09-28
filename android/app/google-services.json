@@ -50,6 +50,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1087273878944-i5cqtp13h1p886rn7rqaa67d7ijrtv8h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.toletforrent.app",
+            "certificate_hash": "5b6445b8763990aa4721cb94094b60218065aaee"
+          }
+        },
+        {
           "client_id": "1087273878944-t6ho0mrqhim5jkv8gvq7nvgmejkd2t9o.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

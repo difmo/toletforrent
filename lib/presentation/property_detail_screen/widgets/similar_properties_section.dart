@@ -67,8 +67,8 @@ class SimilarPropertiesSection extends StatelessWidget {
       BuildContext context, Map<String, dynamic> property) {
     return GestureDetector(
       onTap: () {
-        // Navigate to property detail with new property data
-        Navigator.pushNamed(context, '/property-detail-screen');
+        Navigator.pushNamed(context, '/property-detail-screen',
+            arguments: {'propertyId': property['id']});
       },
       child: Container(
         width: 70.w,

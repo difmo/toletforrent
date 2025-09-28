@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 import 'package:toletforrent/presentation/property_detail_screen/widgets/booking_sheet.dart';
+import 'package:toletforrent/presentation/visits_screens/ScheduleVisitSheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_export.dart';
@@ -107,10 +108,19 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     }
   }
 
+  Future<void> _bumpUserStatsOnPublish(String uid) async {
+    final userRef =
+        FirebaseFirestore.instance.collection('toletforrent_users').doc(uid);
+    await userRef.set({
+      'stats': {'favoritesSaved': FieldValue.increment(1)}
+    }, SetOptions(merge: true));
+  }
+
   // ---------- actions ----------
   Future<void> _toggleFavorite(bool currentlyFav) async {
     if (_favRef == null || _uid == null) return;
     try {
+      _bumpUserStatsOnPublish(_uid!);
       if (currentlyFav) {
         await _favRef!.delete();
         if (mounted) _toast('Removed from favorites');
@@ -158,14 +168,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _buildScheduleVisitBottomSheet(),
-    );
-  }
-
-  void _contactOwnerSheet(String name, String avatar, String phone) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _buildContactOwnerBottomSheet(name, avatar, phone),
     );
   }
 
@@ -221,120 +223,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         child: ElevatedButton(
                           onPressed: () => Navigator.pop(context),
                           child: const Text('OK'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactOwnerBottomSheet(
-      String name, String avatar, String phone) {
-    return Container(
-      height: 35.h,
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          _grabHandle(),
-          Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Text(
-              'Contact Property Owner',
-              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(4.w),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 15.w,
-                        height: 15.w,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: AppTheme.lightTheme.dividerColor,
-                              width: 2),
-                        ),
-                        child: ClipOval(
-                          child: avatar.isEmpty
-                              ? Icon(
-                                  Icons.person,
-                                  size: 28,
-                                  color: AppTheme
-                                      .lightTheme.colorScheme.onSurface
-                                      .withValues(alpha: 0.6),
-                                )
-                              : CustomImageWidget(
-                                  imageUrl: avatar,
-                                  width: 15.w,
-                                  height: 15.w,
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(name,
-                                style: AppTheme.lightTheme.textTheme.titleMedium
-                                    ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                )),
-                            Text(
-                              'Property Owner',
-                              style: AppTheme.lightTheme.textTheme.bodyMedium
-                                  ?.copyWith(
-                                color: AppTheme.lightTheme.colorScheme.onSurface
-                                    .withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _callOwner(phone),
-                          icon: CustomIconWidget(
-                            iconName: 'phone',
-                            color: AppTheme.lightTheme.colorScheme.onPrimary,
-                            size: 18,
-                          ),
-                          label: const Text('Call Now'),
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _whatsAppOwner(phone),
-                          icon: CustomIconWidget(
-                              iconName: 'chat', color: Colors.green, size: 18),
-                          label: const Text('WhatsApp',
-                              style: TextStyle(color: Colors.green)),
-                          style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                  color: Colors.green, width: 1.5)),
                         ),
                       ),
                     ],
@@ -423,7 +311,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             .where('type', isEqualTo: asString(d['type']))
             .limit(10)
             .snapshots();
-
+        final _uid = FirebaseAuth.instance.currentUser?.uid;
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           body: Stack(
@@ -550,12 +438,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                                   "reviewCount": reviewCount,
                                   "phone": phone,
                                 },
-                                // onCall: phone.isEmpty
-                                //     ? null
-                                //     : () => _callOwner(phone),
-                                // onWhatsApp: phone.isEmpty
-                                //     ? null
-                                //     : () => _whatsAppOwner(phone),
+                                onCall: phone.isEmpty
+                                    ? null
+                                    : () => _callOwner(phone),
+                                onWhatsApp: phone.isEmpty
+                                    ? null
+                                    : () => _whatsAppOwner(phone),
                               );
                             },
                           ),
@@ -600,50 +488,55 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               ),
 
               // Bottom bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: ownerRef?.snapshots(),
-                  builder: (context, oSnap) {
-                    final od = oSnap.data?.data() ?? {};
-                    final phone = asString(od['phone'], def: '');
-                    return BottomActionBar(
-                      onScheduleVisit: _scheduleVisit,
-                      // onContactOwner: phone.isEmpty
-                      //     ? null
-                      //     : () => _contactOwnerSheet(
-                      //           asString(od['name'], def: 'Owner'),
-                      //           asString(od['avatar'],
-                      //               def: ''), // <- no network placeholder
-                      //           phone,
-                      //         ),
-                    );
-                  },
-                ),
-              ),
             ],
           ),
-          bottomSheet: // PropertyDetailScreen (where you render BottomActionBar)
-              BottomActionBar(
-            onScheduleVisit: _scheduleVisit,
-            onContactOwner: () {
-              // add this prop and wire it in BottomActionBar
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => BookingSheet(
-                  propertyId: _propId!,
-                  propertyTitle: title,
-                  monthlyRent: asInt(d['rent']),
-                  deposit: asInt(d['deposit']),
-                  ownerId: asString(d['ownerId']),
+          bottomSheet: ownerId != _uid
+              ? BottomActionBar(
+                  cancelText: 'Request for Visit',
+                  confirmText: 'Confirm Booking',
+                  cancel: () => {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => ScheduleVisitSheet(
+                        propertyId: _propId!,
+                        propertyTitle: title,
+                        propertyImage: primary,
+                        ownerId: ownerId,
+                      ),
+                    )
+                  },
+                  confirm: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => BookingSheet(
+                        propertyId: _propId!,
+                        propertyTitle: title,
+                        monthlyRent: asInt(d['rent']),
+                        deposit: asInt(d['deposit']),
+                        ownerId: asString(d['ownerId']),
+                      ),
+                    );
+                  },
+                )
+              : Container(
+                  child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: ownerRef?.snapshots(),
+                    builder: (context, oSnap) {
+                      return BottomActionBar(
+                          cancelText: 'Visit Request ',
+                          confirmText: 'Edit Property',
+                          cancel: () =>
+                              Navigator.pushNamed(context, '/owner-visits'),
+                          confirm: () => Navigator.pushNamed(
+                              context, '/edit-property',
+                              arguments: {'propertyId': _propId!}));
+                    },
+                  ),
                 ),
-              );
-            },
-          ),
         );
       },
     );

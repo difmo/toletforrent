@@ -63,6 +63,9 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1087273878944',
     projectId: 'vvsamajapp',
     storageBucket: 'vvsamajapp.firebasestorage.app',
+    androidClientId: '1087273878944-i5cqtp13h1p886rn7rqaa67d7ijrtv8h.apps.googleusercontent.com',
+    iosClientId: '1087273878944-2d69vdfj80m4kljc81p5og02q91ifrai.apps.googleusercontent.com',
     iosBundleId: 'com.toletforrent.app.testProject',
   );
+
 }

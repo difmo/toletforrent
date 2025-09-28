@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 /// Implements Contemporary Trust Minimalism design with Professional Confidence Palette.
 class AppTheme {
   AppTheme._();
-
   // Professional Confidence Palette - Trust-building colors optimized for mobile usage
   static const Color primaryLight =
       Color(0xFF1976D2); // Trust-building blue for CTAs and navigation

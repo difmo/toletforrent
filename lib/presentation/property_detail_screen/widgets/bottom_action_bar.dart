@@ -4,13 +4,17 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class BottomActionBar extends StatelessWidget {
-  final VoidCallback? onScheduleVisit;
-  final VoidCallback? onContactOwner;
+  final VoidCallback? cancel;
+  final VoidCallback? confirm;
+  final String confirmText;
+  final String cancelText;
 
   const BottomActionBar({
     super.key,
-   this.onScheduleVisit,
-    this.onContactOwner,
+    this.cancel,
+    this.confirm,
+    required this.confirmText,
+    required this.cancelText,
   });
 
   @override
@@ -32,7 +36,7 @@ class BottomActionBar extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: onScheduleVisit,
+                onPressed: cancel,
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
                     color: AppTheme.lightTheme.colorScheme.primary,
@@ -53,7 +57,7 @@ class BottomActionBar extends StatelessWidget {
                     ),
                     SizedBox(width: 2.w),
                     Text(
-                      'Schedule Visit',
+                      cancelText,
                       style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
                         color: AppTheme.lightTheme.colorScheme.primary,
                         fontWeight: FontWeight.w500,
@@ -66,7 +70,7 @@ class BottomActionBar extends StatelessWidget {
             SizedBox(width: 4.w),
             Expanded(
               child: ElevatedButton(
-                onPressed: onContactOwner,
+                onPressed: confirm,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.lightTheme.colorScheme.primary,
                   foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
@@ -85,7 +89,7 @@ class BottomActionBar extends StatelessWidget {
                     ),
                     SizedBox(width: 2.w),
                     Text(
-                      'Pay & Book',
+                      confirmText,
                       style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
                         color: AppTheme.lightTheme.colorScheme.onPrimary,
                         fontWeight: FontWeight.w500,

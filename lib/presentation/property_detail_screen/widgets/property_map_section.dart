@@ -91,7 +91,7 @@ class PropertyMapSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: CustomImageWidget(
                     imageUrl:
-                        'https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=15&size=400x300&markers=color:red%7C$latitude,$longitude&key=YOUR_API_KEY',
+                        'https://maps.googleapis.com/maps/api/staticmap?center=$latitude,$longitude&zoom=15&size=400x300&markers=color:red%7C$latitude,$longitude&key=AIzaSyAI46rVhROb5Dztv1aIDLvGH6QtGe3Addk',
                     width: double.infinity,
                     height: 25.h,
                     fit: BoxFit.cover,

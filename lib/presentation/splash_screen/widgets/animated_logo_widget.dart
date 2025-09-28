@@ -113,25 +113,15 @@ class _AnimatedLogoWidgetState extends State<AnimatedLogoWidget>
                   children: [
                     SvgPicture.asset(
                       'assets/images/logo.svg',
-                      width: 12.w,
-                      height: 12.w,
-                    ),
-                    SizedBox(height: 1.h),
-                    Text(
-                      'To-Let',
-                      style: GoogleFonts.inter(
-                        fontSize: 6.w,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        letterSpacing: 0.5,
-                      ),
+                      width: 24.w,
+                      height: 24.w,
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        );
+        );   
       },
     );
   }

@@ -12,7 +12,6 @@ class LocationHeaderWidget extends StatelessWidget {
     required this.currentCity,
     this.onLocationTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return Container(

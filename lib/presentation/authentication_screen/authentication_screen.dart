@@ -304,7 +304,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         ),
         SizedBox(height: 2.h),
         Text(
-          'To-Let For Rent',
+          'To-Let4Rent',
           style: GoogleFonts.inter(
             fontSize: 16.sp,
             fontWeight: FontWeight.w700,
